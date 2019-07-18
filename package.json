@@ -11,10 +11,10 @@
     "tsc-backend:prod": "tsc -p tsconfig.backend.json --outDir ./build-prod",
     "cp-backend": "node scripts/copy-backend.js",
     "cp-backend:prod": "node scripts/copy-backend.js production",
-    "build-all": "npm-run-all \"build:*\"",
+    "build": "npm-run-all \"build:*\"",
     "build:backend": "npm-run-all clean-backend tsc-backend cp-backend",
     "build:frontend": "webpack --config webpack/frontend.config.js",
-    "build-all-prod": "npm-run-all \"build-prod:*\"",
+    "build-prod": "npm-run-all \"build-prod:*\"",
     "build-prod:backend": "npm-run-all clean-backend:prod tsc-backend:prod cp-backend:prod",
     "build-prod:frontend": "webpack --mode=production --config webpack/frontend.config.js"
   },

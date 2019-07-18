@@ -15,6 +15,24 @@ Shortcuts:
 
 ## About / Goals
 
+### Background
+
+> I am simply trying to finish what Blockstack started in regards to Gaia – or rather,
+> to try and fulfill the original goal in a different way. I wanted Users to be able to
+> use their own Dropbox without having to spin up their own node and all of the complexity
+> that doing so brings – so why not have a psuedo-centralized service handle it all for
+> them? And beyond that, why not have the ability to hook up multiple backends (as
+> advertised in the whitepaper) that can replicate or be given to a particular app at
+> the user’s choosing?
+>
+> If you want to get into blockstack easily, use this; if you are concerned about
+> centralization but still want the ease-of-use this brings, run your own node; if you
+> want to go as deep as you can, run multiple of your own gaia hubs and use a browser
+> that supports that (if any exist currently).
+> - Michael Fedora, from [here](https://forum.blockstack.org/t/8476/17?u=michaelfedora).
+
+### Explanation
+
 The goal of Hestia is to serve as a more complex
 [Gaia Hub](https://github.com/blockstack/gaia). While the original software works well,
 it works simply and cannot solve certain problems, such as those posed by using personal
@@ -42,8 +60,9 @@ on the driver backend, and all other apps that attempt to use the driver will fa
 It also provides a singular Gaia interface for all backends -- the user manages what
 drivers handle what addresses. For instance, an end-user could have their Dropbox
 handle Stealthy data, while their Google Drive can handle their Travelstack data. All
-drivers get your identity folder, however, and some drivers allow you to use them more than once;
-for instnace, you could attatch two dropbox instances to your account if you so desired.
+drivers get your identity folder, however, and some drivers allow you to use them more than
+once; for instnace, you could attatch two dropbox instances to your account if you so
+desired.
 
 ```md
 User Connections:
@@ -93,29 +112,31 @@ interface Config {
   db_host: string; // The RethinkDB host (default: `127.0.0.1`)
   db_port: number; // The RethinkDB port (default: `28015`)
 
-  session_secret: string; // The session secret key (e.x. `keyboard cat`)
-  session_name: string; // The session cookie name (default: `hestia`)
-
-  admins?: string[]; // (optional) A list of addresses which are considered "admins"
   whitelist?: string[]; // (optional) A list of addresses which are whitelisted to use the node
 
   max_blob_size: string | number; // The maximum blob size for files (i.e. "5mb", 5242880)
+  page_size?: number; // The pagination size for list-files
 
   root_plugin?: string; // The plugin to use as the `/` plugin, i.e. for a web interface
 
   // driver configs
   drivers: {
-    [key: string]: any; // this driver ID
-    path: string; // the path to the driver for `import({path})`
-    icon_url?: string; // (optional) the url for the icon to use
-    whitelist?: string[]; // (optional) A list of addresses that are whitelisted for the driver
-  }[];
+    [id: string]: { // this driver ID
+      path: string; // the path to the driver for `import({path})`
+      icon_url?: string; // (optional) the url for the icon to use
+      whitelist?: string[]; // (optional) A list of addresses that are whitelisted for the driver
+      auto_register?: boolean; // (optional) whether or not the driver should be auto-added to users
+      root_only?: boolean; // (optional) whether or not the drive should only be used for root
+                          // (identity) storage
+    } 
+  };
 
   // plugin configs
   plugins: {
-    [key: string]: any; // the plugin ID
-    path: string; // the path to the plugin for `import({path})`
-  }[];
+    [id: string]: { // the plugin ID
+      path: string; // the path to the plugin for `import({path})`
+    }
+  };
 }
 ```
 
@@ -125,9 +146,9 @@ interface Config {
 
 Most routes need some sort of authentication token in order to work properly, but in
 general there are three types:
-- Those that do not need any (denoted as "`/route`(~)")
-- Those that need normal gaia authentication (denoted as "`/route` (*)")
-- And those that need what is called a "user" authentication (denoted as "`/route` (!)")
+- Those that do not need any (simply as "`/route`")
+- Those that need normal gaia authentication (denoted as "`/route` (1)")
+- And those that need what is called a "user" authentication (denoted as "`/route` (2)")
 
 A "user" authentication token is a token which is either authed for the Gaia Hub itself
 as if it were an app (i.e. properly issued to `server_name`) or one that is issued for
@@ -151,26 +172,26 @@ The gaia route group, of which all (should) align with the spec listed in the
 [`Gaia Hub`](https://github.com/blockstack/gaia) repo. This route is what is used in
 browser configurations which need a link to your gaia hub (i.e. `server_name/gaia`).
 
-  - GET `/gaia/hub_info` (~) - Read the hub info
-  - GET `/gaia/read/{address}/{path}` (~) - Read a file from the given bucket address
+  - GET `/gaia/hub_info` - Read the hub info
+  - GET `/gaia/read/{address}/{path}` - Read a file from the given bucket address
 and file path
-  - POST `/gaia/store/{address}/{path}` (*) - Store a file to the given bucket address
+  - POST `/gaia/store/{address}/{path}` (1) - Store a file to the given bucket address
 and path. Post the contents as a body or urlencoded stream, preferably with a mime-type
 and content-length.
-  - DELETE `/gaia/delete/{address}/{path}` (*) - Delete the file given by the bucket
+  - DELETE `/gaia/delete/{address}/{path}` (1) - Delete the file given by the bucket
 address and path
-  - POST `/gaia/list-files/{address}` (*) - List the files in the given bucket. Within
+  - POST `/gaia/list-files/{address}` (1) - List the files in the given bucket. Within
 the body, put a JSON object with `{ page: number }` to specify the page number. Returns
 `{ entries: string[], page?: number }`, with entries being full-length paths and page
 only existing if there is another page to show.
-  - POST `/revoke-all/{address}` (*) - Revoke all tokens in the given bucket up to a
+  - POST `/revoke-all/{address}` (1) - Revoke all tokens in the given bucket up to a
 value (in seconds) in the body which is formatted as so: `{ oldestValidTimestamp: number }`.
 
 ### API Routes - `/api/v1`
 
 Miscellaneous API routes are as follows:
 
-- `/api/v1/plugins` (~) - Returns the list of plugins and their IDs, as well as whatever
+- `/api/v1/plugins` - Returns the list of plugins and their IDs, as well as whatever
 info they want to include in the `getInfo` function.
 - `/api/v1/drivers` (~,!) - Return the available drivers and, if logged in, the current
 connections in the following format:
@@ -180,25 +201,25 @@ interface {
   available: { id: string, name: string, rootOnly?: boolean, multi?: boolean }[]
 }
 ```
-- `/api/v1/drivers/{id}/icon` (~) - Get the icon for a particular driver
-- `/api/v1/drivers/{id}/register` (!) -  Register for a particular driver -- you can either
+- `/api/v1/drivers/{id}/icon` - Get the icon for a particular driver
+- `/api/v1/drivers/{id}/register` (2) -  Register for a particular driver -- you can either
 put the auth token in the `Authorization: Bearar {token}` header or as a query parameter
 `?authorizationBearer={token}`.
 
 ### User Routes - `/api/v1/user`
 
-Some of these routes have the two symbols "(*!)" -- this simply means that they are only
+Some of these routes have the two symbols "(3)" -- this simply means that they are only
 partially validated and not checked against whether or not the bucket or user exists, or that
 the claimed Gaia-Hub in the token is the actual Hestia hub -- the token is simply used to
 authenticate.
 
-- POST `/api/v1/user/validate-token` (!) - Validates the token used to see if it is valid in
+- POST `/api/v1/user/validate-token` (2) - Validates the token used to see if it is valid in
 regards to using the API with it.
-- POST `/api/v1/user/register` (*!) - Registers the user to the Hestia hub and auto-registers 
+- POST `/api/v1/user/register` (3) - Registers the user to the Hestia hub and auto-registers 
 them for any drivers that are labeled as such.
-- POST `/api/v1/user/unregister` (*!) - Unregisters the user from all drivers and then deletes
+- POST `/api/v1/user/unregister` (3) - Unregisters the user from all drivers and then deletes
 the user from the database.
-- GET `/api/v1/user/gdpr` ! - Get's a JSON'd file of the user object stored in the database.
+- GET `/api/v1/user/gdpr` (2) - Get's a JSON'd file of the user object stored in the database.
 Be careful, as this includes any and all tokens and keys generated for the driver connections.
 
 ### Connection Routes - `/api/v1/connections`
@@ -209,22 +230,22 @@ common, however, is that the very first parameter is the `{id}` field, which is 
 ID itself -- you can get this from the `current` sub-object in the `/drivers` return object
 (when requested with a valid token).
 
-- POST `/api/v1/connections/{id}/set-default` (!) - Set this connection to be the "default",
+- POST `/api/v1/connections/{id}/set-default` (2) - Set this connection to be the "default",
 which means that all new store requests will be forwarded to this address if they are not
 already configured to go to a specific one.
-- GET `/api/v1/connections/{id}/info` (!) - Get the info for a particular connection; returns
+- GET `/api/v1/connections/{id}/info` (2) - Get the info for a particular connection; returns
 `{ spaceUsed?: number, spaceAvailable?: number }`.
-- DELETE `/api/v1/connections/{id}` (!) - Delete the connection -- **NOTE:** this may or may
+- DELETE `/api/v1/connections/{id}` (2) - Delete the connection -- **NOTE:** this may or may
 not clear the data in the backend, and all data within the connection is assumed to be lost
 and unrecoverable.
-- POST `/api/v1/connections/{id}/set-buckets` (!) - Set the bucket addresses for the
+- POST `/api/v1/connections/{id}/set-buckets` (2) - Set the bucket addresses for the
 connection; put a `string[]` in the body, in JSON format.
 
-- POST `/api/v1/connections/{id}/store/{address}/{path}` (!) - See `/gaia/store`.
-- GET `/api/v1/connections/{id}/read/{address}/{path}` (!) - See `/gaia/read`. This one still
+- POST `/api/v1/connections/{id}/store/{address}/{path}` (2) - See `/gaia/store`.
+- GET `/api/v1/connections/{id}/read/{address}/{path}` (2) - See `/gaia/read`. This one still
 requires the user to be authenticated because connection IDs are not unique across all users.
-- DELETE `/api/v1/connections/{id}/delete/{address}/{path}` (!) - See `/gaia/delete`.
-- POST `/api/v1/connections/{id}/list-files` (!) - Similar to the `/gaia/list-files` except
+- DELETE `/api/v1/connections/{id}/delete/{address}/{path}` (2) - See `/gaia/delete`.
+- POST `/api/v1/connections/{id}/list-files` (2) - Similar to the `/gaia/list-files` except
 that it doesn't require an address (it actually can't be given one) -- this is because the
 connection will instead list all files the connection has access to.
 
@@ -289,114 +310,6 @@ interface UserDropboxDriverConfig extends DriverConfig {
 }
 ```
 
-### Driver Creation
-
-Drivers are simply given their ID and Name on creation. They require an `init` function and
-are constructed using the following pattern (with sample code):
-
-```typescript
-import * as fs from 'fs-extra';
-import * as path from 'path';
-
-class MyDriver {
-  constructor(id: name, config: any) { }
-
-  public async init(): Promise<{
-    name: string, icon: Buffer, multi?: boolean, autoRegisterable?: boolean
-  }> {
-    const icon = await fs.readFile(path.join(__dirname, 'mydriver-icon.png'));
-    return { name: "My Plugin", icon, autoRegisterable: true };
-  }
-}
-
-export default new MyDriver();
-```
-
-The `init` function is where you "setup" your driver using the config and then initialize
-it with things that require some time. You must return an object (not a class), so while it
-is recommended to use a class, as long as you return an object with an init function that
-returns a promise (along with all the other required functions), it will work.
-
-There are a number of required functions that a Driver needs to fill out, and these are as
-seen below:
-
-```typescript
-interface Driver {
-
-  // for `/gaia/read`
-  performRead(options: {
-    path: string;
-    storageTopLevel: string;
-    user: User;
-  }): Promise<{ contentType: string, stream: ReadableStream }>;
-
-  // for `/gaia/store`
-  performWrite(options: {
-    path: string;
-    storageTopLevel: string;
-    contentType: string;
-    contentLength: number; // integer
-    stream: ReadableStream;
-    user: User;
-  }): Promise<void>;
-
-  // for `/gaia/delete`
-  performDelete(options: {
-    path: string;
-    storageTopLevel: string;
-    user: User;
-  }): Promise<void>;
-
-  // for `/gaia/list-files`
-  listFiles(prefix: string, page: number, user: User): Promise<{ entries: string[], page?: number }>;
-
-
-  // for `/api/v1/connections/{id}/info`
-  getInfo(user: User): Promise<{
-    spaceUsed: number,
-    spaceAvailable?: number,
-  }>;
-
-  // for registering - `/api/v1/drivers/{id}/register`
-  // note that the second time through `user` may not exist because there is no more token after
-  // a redirect.
-  register(user: User, redirectUri: string, req: { headers: { [key: string]: string | string[] }, body: any, query: any }): Promise<{
-    redirect?: {
-      uri: string
-      headers?: {[key: string]: any},
-    },
-    finish?: { address: string, userdata?: any }
-  }>;
-
-  // alternative implementation for auto-registering or registering in one go
-  register(user: User): Promise<{
-    finish?: { address: string, userdata?: any }
-  }>;
-
-  // for checking things before we finish registering, so as to remove duplicates.
-  // this is run after the second time through with a garunteed `User` object so
-  // all driver-config data can be checked -- i.e. so the user doesn't register
-  // two of the same dropbox accounts.
-  postRegisterCheck?(user: User, newEntry: any): Promise<void>;
-
-  // unregister the user from the driver -- can only use via connections API,
-  // DELETE `/api/v1/connections/{id}`
-  unregister(user: User): Promise<void>;
-}
-```
-
-There are also optional event hooks you can use:
-
-```typescript
-interface Driver {
-
-  /**
-   * Ticks each 500ms unless the promise hasn't returned yet, in which case it doesn't fire.
-   */
-  tick?(): Promise<void>;
-}
-```
-
 [Back to top](#)
 
 ## Plugins
@@ -443,88 +356,6 @@ interface DashboardPluginConfig {
 // path: `default-plugins/backup`
 interface BackupPluginConfig {
   temp_directory?: string; // default: `__dirname/backups` (i.e. `./build/backend/default-plugins/backups`)
-}
-```
-
-### Plugin Creation
-
-Plugins have an injected API they can use so as to not fill up bandwidth. They require an
-`init` function and are constructed using the following pattern:
-
-```typescript
-class MyPlugin {
-
-  public async init(id: name, config: any, api: PluginApiInterface): Promise<{ name: string, router?: Router, authedRouter?: Router }> {
-    return { name: "My Plugin" };
-  }
-}
-
-export default new MyPlugin();
-```
-
-The `init` function is where you "setup" your plugin using the config and then initialize
-it with things that require some time. You must return an object (not a class), so while it
-is recommended to use a class, as long as you return an object with an init function that
-returns a promise, it will work. Within the return object, two routers can be returned,
-both of which will be mounted on `/plugins/{id}`, but one having a middleware which will
-authenticate users and put the object in `req.user`. **Note:** The authenticated middleware
-will overwrite any routes used in the unauthenticated middleware unless `next()` is used.
-
-There are also optional event hooks and auxillary functions you can use:
-
-```typescript
-export interface Plugin {
-
-  /**
-   * Ticks each 500ms unless the promise hasn't returned yet, in which case it doesn't fire.
-   */
-  tick?(): Promise<void>;
-
-  /**
-   * Used by `meta-service` to get additional info to return on `/api/v1/plugins` for digestion
-   * by clients.
-   */
-  getInfo?(): any;
-}
-```
-
-The following is the api interface type for reference:
-
-```typescript
-export interface PluginApiInterface {
-  meta: {
-    plugins(): { id: string, name: string }[];
-    drivers(): Promise<{
-      available: { id: string, name: string, rootOnly?: boolean, multi?: boolean }[]
-    }>;
-    drivers(userAddress: string): Promise<{
-      current: { id: string, name: string, driver: string, rootOnly?: boolean }[],
-      available: { id: string, name: string, rootOnly?: boolean, multi?: boolean }[]
-    }>;
-    env(): string;
-  };
-  gaia: {
-    read(address: string, path: string): Promise<{ contentType: string, stream: Readable }>;
-    store(address: string, path: string,
-      data: { contentType: string, contentLength: number, stream: Readable }, user?: User): Promise<Error[]>;
-    delete(address: string, path: string): Promise<void>;
-    listFiles(address: string, page?: number): Promise<{ entries: string[], page?: number }>;
-  };
-  db: {
-    getUser(address: string): Promise<User>;
-    getUserFromBucket(address: string): Promise<User>;
-  };
-  connections: {
-    read(id: string, userAddress: string, address: string, path: string): Promise<{ contentType: string, stream: Readable }>;
-    store(id: string, userAddress: string, address: string, path: string,
-      data: { contentType: string, contentLength: number, stream: Readable }): Promise<void>;
-    delete(id: string, userAddress: string, address: string, path: string): Promise<void>;
-    listFiles(id: string, userAddress: string, page?: number): Promise<{ entries: string[], page?: number }>;
-
-    info(id: string, userAddress: string): Promise<{ spaceUsed: number, spaceAvailable?: number }>;
-    setDefault(id: string, userAddress: string): Promise<void>;
-    setBuckets(id: string, userAddress: string, addresses: string[]): Promise<void>;
-  };
 }
 ```
 

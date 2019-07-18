@@ -79,7 +79,7 @@ class DriverService {
     this.ticking['.'] = false;
   }
 
-  public async init(config: DriverConfig[]) {
+  public async init(config: { [id: string]: DriverConfig }) {
     const successes: DriverInfo[] = [];
     const total = Object.keys(config).filter(a => typeof config[a] === 'object').length;
     for(const driverId in config) if(typeof(config[driverId]) === 'object') {

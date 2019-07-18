@@ -43,7 +43,7 @@ class PluginService {
     this.ticking['.'] = false;
   }
 
-  public async init(config: PluginConfig[]) {
+  public async init(config: { [id: string]: PluginConfig }) {
     const successes: { plugin: Plugin, info: PluginInfo }[] = [];
     const total = Object.keys(config).filter(a => typeof config[a] === 'object').length;
     /*if(Object.keys(config).find(a => a === 'dashboard')) {
