@@ -5,6 +5,8 @@ import { createHash } from 'crypto';
 
 export const configIdRegex = /^[\w\d][\w\d\.\-]*(?:\/[\w\d][\w\d\.\-]*)*$/;
 
+export const trueArray = ['1', 1, true, 'true'];
+
 export function parseBytes(v: string | number) {
   return typeof v === 'string' ? bytes.parse(v) : Number(v) || 0;
 }
@@ -34,6 +36,12 @@ export function hashStream(stream: Readable) {
     stream.on('data', data => hash.update(data));
     stream.on('end', () => resolve(hash.digest('hex')));
   });
+}
+
+export function hashBuffer(buff: Buffer) {
+  const hash = createHash('sha256');
+  hash.update(buff);
+  return  hash.digest('hex');
 }
 
 export function pubkeyHexToECPair (pubkeyHex: string) {

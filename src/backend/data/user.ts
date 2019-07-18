@@ -13,7 +13,6 @@ export interface SerializedUser {
       name: string;
       config: any;
   }[];
-  admin: boolean;
 }
 
 export class User {
@@ -37,8 +36,6 @@ export class User {
   connectionId?: string; // for "makeSafe"
   driverConfig?: any; // for "makeSafe"
 
-  admin: boolean;
-
   constructor(user?: Partial<User>) {
     this.id = String(user.id || '');
     this.address = String(user.address || '');
@@ -52,7 +49,6 @@ export class User {
           this.connections[key] = Object.assign({}, user.connections[key]);
     }
 
-    this.admin = Boolean(user.admin || false);
     this.connectionId = user.connectionId || '';
     this.driverConfig = user.driverConfig ? Object.assign({}, user.driverConfig) : null;
   }
@@ -86,7 +82,6 @@ export class User {
       buckets,
       connectionIds: Object.keys(this.connections),
       connections: connections.map(c => Object.assign({}, c, { buckets: c.buckets.map(b => buckets.indexOf(b)) })),
-      admin: this.admin || false
     };
     if(!noId)
       r.id = this.id;
@@ -112,8 +107,7 @@ export class User {
       address: obj.address,
       internalBucketAddress: obj.internalBucketAddress,
       defaultConnection: obj.defaultConnection,
-      connections,
-      admin: obj.admin
+      connections
     });
   }
 

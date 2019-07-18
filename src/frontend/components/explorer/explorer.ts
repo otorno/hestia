@@ -7,9 +7,11 @@ import { mapGetters } from 'vuex';
 import JSZip from 'jszip';
 import FileSaver from 'file-saver';
 import * as filesize from 'filesize';
-import { DateTime, FixedOffsetZone } from 'luxon';
+import { DateTime } from 'luxon';
 
 import { HestiaApi } from 'common/api/api';
+
+import BucketConnectionsModal from '../bucket-connections/bucket-connections';
 
 interface EntryInfo {
   name: string;
@@ -53,6 +55,7 @@ export default (Vue as VVue).component('hestia-explorer', {
 
       bigList: [] as string[],
       index: { } as { [path: string]: { files: EntryInfo[], folders: EntryInfo[] } },
+      indexHash: '',
       rootInfo,
 
       sortByName: 'name',
@@ -137,6 +140,8 @@ export default (Vue as VVue).component('hestia-explorer', {
         this.dirInfo = info || this.rootInfo;
       } else
         this.dirInfo = this.rootInfo;
+
+      this.refresh();
     },
     $route() {
       if(this.$route.path !== this.dir && this.index[this.$route.path])
@@ -246,7 +251,12 @@ export default (Vue as VVue).component('hestia-explorer', {
     async listFiles() { // make index
       this.workingOn = 'Fetching & indexing files...';
 
-      const entries = (await this.api.user.listFiles(true)).data;
+      const hash = (await this.api.user.listFiles({ global: true, hash: true })).data;
+      if(this.indexHash && this.indexHash === hash)
+        return;
+      this.indexHash = hash;
+
+      const entries = (await this.api.user.listFiles({ global: true })).data;
       this.bigList = Object.keys(entries);
 
       const index: { [name: string]: { files: EntryInfo[], folders: EntryInfo[] } } = { };
@@ -703,6 +713,90 @@ export default (Vue as VVue).component('hestia-explorer', {
       }
       this.working = false;
       this.workingOn = '';
+    },
+    manageConnections(item?: EntryInfo) {
+      if(this.working)
+        return;
+
+      const path = item ? this.dir + item.name + '/' : this.dir;
+      const idx = path.indexOf('/', 2);
+      const bucket = path.slice(1, idx);
+      const info = this.index['/'].folders.find(a => a.name === bucket);
+      if(!info) {
+        console.warn(`Couldn't find info for bucket ${bucket}!`);
+        return;
+      }
+
+      this.$modal.open({
+        props: { token: this.token, bucket },
+        component: BucketConnectionsModal,
+        canCancel: true,
+        parent: this,
+        events: {
+          close: () => this.sync(bucket, '/')
+        }
+      });
+    },
+    async syncFile(item: EntryInfo, dir: string) {
+      if(!item.oldConns.length)
+        return;
+      for(const oldConn of item.oldConns) {
+        const res = await this.api.gaia.readRaw(dir + item.name);
+        await this.api.connections.storeRaw(oldConn, dir + item.name, {
+          contentType: res.headers['Content-Type'],
+          contentLength: res.headers['Content-Length'],
+          data: res.data
+        });
+      }
+    },
+    async syncFolder(item: EntryInfo, dir: string) {
+      if(!item.oldConns.length)
+        return;
+      const path = dir + item.name + '/';
+      const index = this.index[path];
+      if(!index)
+        return;
+      for(const file of index.files)
+        await this.syncFile(file, path);
+      for(const folder of index.folders)
+        await this.syncFolder(folder, path);
+    },
+    async syncDir() {
+      if(this.dir === '/') {
+        if(!this.rootInfo.oldConns.length)
+            return;
+        const index = this.index['/'];
+        if(!index)
+          return;
+        for(const file of index.files)
+          await this.syncFile(file, '/');
+        for(const folder of index.folders)
+          await this.syncFolder(folder, '/');
+      } else {
+        const dir = this.dir.slice(0, this.dir.lastIndexOf('/', this.dir.length - 2) + 1);
+        return this.sync(this.dirInfo.name, dir);
+      }
+    },
+    async sync(itemName: string, dir?: string) {
+      if(this.working)
+        return;
+      this.working = true;
+      this.workingOn = 'Syncing ' + itemName + '...';
+      dir = dir || this.dir;
+      await this.listFiles();
+      if(this.index[dir]) {
+        let item = this.index[dir].files.find(a => a .name === itemName);
+        if(item)
+          await this.syncFile(item, dir);
+        else {
+          item = this.index[dir].folders.find(a => a.name === itemName);
+          if(item)
+            await this.syncFolder(item, dir);
+        }
+      }
+      this.working = false;
+      this.workingOn = '';
+      this.progress = 0;
     }
   }
 });

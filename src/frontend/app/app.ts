@@ -15,7 +15,9 @@ export default (Vue as VVue).extend({
       showMenu: false,
       userSession: makeUserSession(this.$store),
       token: '',
-      api: new HestiaApi(() => (this as any).token)
+      api: new HestiaApi(() => (this as any).token),
+      backupStatus: '',
+      backupDebounce: false,
     };
   },
   computed: {
@@ -40,30 +42,47 @@ export default (Vue as VVue).extend({
           this.userdata.profile.image[0]) ?
           this.userdata.profile.image[0].contentUrl : '';
     },
+    backupText(): string {
+      switch(this.backupStatus) {
+        case 'done': return 'Download Backup';
+        case 'working': return 'Making Backup...';
+        case 'not started':
+        default: return 'Backup Everything';
+      }
+    }
   },
   async mounted() {
+
+    this.api.populatePlugins().then(() => {
+      if(this.api.plugins.backup) {
+        this.checkBackupStatus();
+        setInterval(() => {
+          if(this.backupStatus === 'working')
+            this.checkBackupStatus();
+        }, 5000);
+      }
+    }).catch(e => console.error('Error getting plugins to check for Backup functionality: ', e));
+
     this.$store.commit('setStatus', '');
     this.token = (await this.userSession.getOrSetLocalGaiaHubConnection()).token;
-    this.api.user.validateToken().then(
-      () => { },
-      err => {
-        if(err && err.response && err.response.status === 403) {
-          this.$dialog.alert({
-            type: 'is-danger',
-            title: 'Bad Token',
-            message: 'Cannot use the Hestia Dashboard unless Hestia is your selected Gaia Hub.'
-            + ' Please switch to using ' + location.origin + '/gaia as your Gaia Hub and try again.',
-            canCancel: false,
-            onConfirm: () => this.logout()
-          });
-        } else throw err;
-    }).catch(err => {
-      this.$dialog.alert({
-        type: 'is-danger',
-        message: 'Error verifying token: ' + err.message
-      });
-      console.error(err);
-    });
+    try {
+      await this.api.user.validateToken();
+    } catch(err) {
+      if(err && err.response && err.response.status === 403) {
+        await new Promise((resolve) => this.$dialog.alert({
+          type: 'is-danger',
+          title: 'Bad Token',
+          message: 'Cannot use the Hestia Dashboard unless Hestia is your selected Gaia Hub.'
+          + ' Please switch to using ' + location.origin + '/gaia as your Gaia Hub and try again.',
+          canCancel: false,
+          onConfirm: () => resolve()
+        }));
+        await this.logout();
+      } else {
+        this.handleError(err);
+        return;
+      }
+    }
   },
   watch: {
     /*$route(n: Route, o) {
@@ -83,6 +102,13 @@ export default (Vue as VVue).extend({
     }*/
   },
   methods: {
+    handleError(err: Error) {
+      this.$dialog.alert({
+        type: 'is-danger',
+        message: 'Error verifying token: ' + err.message
+      });
+      console.error(err);
+    },
     getProfileName(user: UserData, noFallback?: boolean) {
       if(!user) return `{null}`;
       if(user.username) return user.username;
@@ -105,8 +131,32 @@ export default (Vue as VVue).extend({
           parent: this,
       });
     },
-    backup() {
-      axios.post(location.origin + '/plugins/backup/request-backup');
+    async checkBackupStatus() {
+      this.backupStatus = (await this.api.plugins.backup.status()).data.status;
+    },
+    async backup() {
+      if(this.backupDebounce)
+        return;
+      this.backupDebounce = true;
+      if(this.backupStatus === 'done') {
+        const w = window.open();
+        w.location.href = this.api.plugins.backup.downloadLink;
+        await this.checkBackupStatus();
+        this.backupDebounce = false;
+        return;
+      }
+      await this.checkBackupStatus();
+      if(this.backupStatus === 'not started') {
+        try {
+          await this.api.plugins.backup.requestBackup();
+          this.backupStatus = 'working';
+        } catch(e) {
+          this.handleError(e);
+          this.backupDebounce = false;
+          return;
+        }
+      }
+      this.backupDebounce = false;
     },
     async logout() {
       this.showMenu = false;

@@ -6,6 +6,26 @@ interface ApiInterface {
   headers: any;
 }
 
+class BackupPlugin {
+  private apiUrl: string;
+
+  constructor(private parent: ApiInterface, id: string) {
+    this.apiUrl = this.parent.hestiaUrl + '/plugins/' + id;
+  }
+
+  async requestBackup() {
+    await axios.post(this.apiUrl + '/request-backup', null, { headers: this.parent.headers });
+  }
+
+  status() {
+    return axios.get<{ status: 'done' | 'working' | 'not started' }>(this.apiUrl + '/status', { headers: this.parent.headers });
+  }
+
+  get downloadLink() {
+    return this.apiUrl + '/download?authorizationBearer=' + this.parent.token;
+  }
+}
+
 const NOOP_STRING_GETTER = () => '';
 
 type StringGetter = (() => string) | string;
@@ -18,9 +38,30 @@ export class HestiaApi implements ApiInterface {
   private _hestiaUrl: string;
   private _hestiaUrlGetter: () => string;
 
+  public plugins: {
+    [key: string]: any;
+    backup?: BackupPlugin;
+  } = { };
+
   constructor(token: StringGetter, hestiaUrl: StringGetter = () => location.origin) {
     this.setToken(token);
     this.setHestiaUrl(hestiaUrl);
+  }
+
+  async populatePlugins() {
+    const plugins = { } as { [key: string]: any };
+
+    await this.meta.plugins().then(res => {
+      for(const p of res.data) {
+        switch(p.longId) {
+          case 'io.github.michaelfedora.hestia.backup':
+            plugins.backup = new BackupPlugin(this, p.id);
+            break;
+          default: break;
+        }
+      }
+      this.plugins = Object.freeze(plugins);
+    });
   }
 
   setToken(token: StringGetter) {
@@ -199,7 +240,7 @@ export class HestiaApi implements ApiInterface {
     constructor(private parent: ApiInterface) { }
 
     async plugins() {
-      return axios.get<{ id: string, name: string }[]>(this.parent.hestiaUrl + '/api/v1/plugins');
+      return axios.get<{ id: string, longId: string, name: string }[]>(this.parent.hestiaUrl + '/api/v1/plugins');
     }
 
     async drivers(): Promise<AxiosResponse<{
@@ -246,7 +287,7 @@ export class HestiaApi implements ApiInterface {
       return axios.post<void>(this.apiUrl + '/unregister', null, { headers: this.parent.headers });
     }
 
-    async listFiles(global?: false): Promise<AxiosResponse<{
+    async listFiles(options?: { global?: false, hash?: false }): Promise<AxiosResponse<{
       [path: string]: {
         contentType: string;
         size: number;
@@ -255,7 +296,7 @@ export class HestiaApi implements ApiInterface {
         connIds: string[]
       }
     }>>;
-    async listFiles(global: true): Promise<AxiosResponse<{
+    async listFiles(options: { global: true, hash?: false }): Promise<AxiosResponse<{
       [path: string]: {
         [connId: string]: {
           contentType: string;
@@ -265,10 +306,16 @@ export class HestiaApi implements ApiInterface {
         }
       }
     }>>;
-    async listFiles(global?: boolean) {
+    async listFiles(options: { global?: boolean, hash?: true }): Promise<AxiosResponse<string>>;
+    async listFiles(options?: { global?: boolean, hash?: boolean }) {
+      options = Object.assign({}, options);
       let url = this.apiUrl + '/list-files';
-      if(global)
+      if(options.global && options.hash)
+        url += '?global=true&hash=true';
+      else if(options.global)
         url += '?global=true';
+      else if(options.hash)
+        url += '?hash=true';
       return axios.get(url, { headers: this.parent.headers });
     }
 
@@ -284,7 +331,6 @@ export class HestiaApi implements ApiInterface {
           config: any;
           buckets: string[];
         } };
-        admin: boolean;
       }>(this.apiUrl + '/gdpr', { headers: this.parent.headers });
     }
   }(this);

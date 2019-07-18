@@ -9,6 +9,8 @@ import auth from '../auth-service';
 import drivers from '../driver-service';
 import meta from '../meta-service';
 import { User } from '../../data/user';
+import { trueArray, hashBuffer } from '../../util';
+import { GlobalMetadataIndex, MetadataIndex } from '../../data/metadata-index';
 
 export default function createUserApi(logger: Logger) {
   const router = Router();
@@ -152,10 +154,15 @@ export default function createUserApi(logger: Logger) {
   router.get('/list-files',
     validateUser(),
     wrapAsync(async (req, res) => {
-      if(['1', 1, true, 'true'].includes(req.query.global))
-        res.json(await db.getGlobalUserIndex(req.user));
+      let index: GlobalMetadataIndex | MetadataIndex;
+      if(trueArray.includes(req.query.global))
+        index = await db.getGlobalUserIndex(req.user);
       else
-        res.json(await db.getUserIndex(req.user));
+        index = await db.getUserIndex(req.user);
+      if(trueArray.includes(req.query.hash))
+          res.send(hashBuffer(Buffer.from(JSON.stringify(index), 'utf8')));
+      else
+        res.json(index);
     }),
     handleError('user list-files'));
 

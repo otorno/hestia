@@ -31,8 +31,8 @@
           <b-dropdown-item aria-role='list-item' custom>
             <b-checkbox v-model='useFamiliar'>Use Familiar Names</b-checkbox>
           </b-dropdown-item>
-          <b-dropdown-item aria-role='list-item' :disabled='dirInfo.oldConns.length === 0'>Sync</b-dropdown-item>
-          <b-dropdown-item aria-role='list-item' :disabled='dirInfo.name === "root"'>Manage Buckets</b-dropdown-item>
+          <b-dropdown-item aria-role='list-item' :disabled='dirInfo.oldConns.length === 0' @click='syncDir()'>Sync</b-dropdown-item>
+          <b-dropdown-item aria-role='list-item' :disabled='dirInfo.name === "root"' @click='manageConnections()'>Manage Connections</b-dropdown-item>
           <b-dropdown-item aria-role='list-item' @click='downloadDir(dir)'>Download</b-dropdown-item>
         </b-dropdown>
   </div>
@@ -57,8 +57,8 @@
           <button class='dot-button' slot='trigger'>
               <b-icon icon='dots-horizontal'></b-icon>
           </button>
-          <b-dropdown-item aria-role='list-item' :disabled='folder.oldConns.length === 0'>Sync</b-dropdown-item>
-          <b-dropdown-item aria-role='list-item'>Manage Buckets</b-dropdown-item>
+          <b-dropdown-item aria-role='list-item' :disabled='folder.oldConns.length === 0' @click='sync(folder)'>Sync</b-dropdown-item>
+          <b-dropdown-item aria-role='list-item' @click='manageConnections(folder)'>Manage Connections</b-dropdown-item>
           <b-dropdown-item aria-role='list-item' @click='downloadDir(dir + folder.name + "/")'>Download</b-dropdown-item>
         </b-dropdown>
       </router-link>
@@ -79,8 +79,8 @@
           <button class='dot-button' slot='trigger'>
               <b-icon icon='dots-horizontal'></b-icon>
           </button>
-          <b-dropdown-item aria-role='list-item' :disabled='file.oldConns.length === 0'>Sync</b-dropdown-item>
-          <b-dropdown-item aria-role='list-item'>Manage Buckets</b-dropdown-item>
+          <b-dropdown-item aria-role='list-item' :disabled='file.oldConns.length === 0' @click='sync(file)'>Sync</b-dropdown-item>
+          <b-dropdown-item aria-role='list-item' :disabled='dirInfo.name === "root"' @click='manageConnections()'>Manage Connections</b-dropdown-item>
           <b-dropdown-item aria-role='list-item' @click='openFile(file.name)'>Open</b-dropdown-item>
         </b-dropdown>
       </a>

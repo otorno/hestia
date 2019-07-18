@@ -6,6 +6,9 @@ import { execSync } from 'child_process';
 import { Plugin, PluginApiInterface } from '../data/plugin';
 import { NotFoundError } from '../data/hestia-errors';
 
+import * as sevBin from '7zip-bin';
+import { add } from 'node-7z';
+
 interface BackupPluginConfig {
   temp_directory?: string; // default: __dirname/backups
 }
@@ -47,6 +50,23 @@ class BackupPlugin implements Plugin {
     return { version : '1.0.0', source: 'default' };
   }
 
+  sevenZipAdd(dest: string, src: string) {
+    // -sdel -tzip -mmt1 -mx4
+    const stream = add(dest, src, {
+      $bin: sevBin.path7za,
+      deleteFilesAfter: true,
+      archiveType: 'zip',
+      noRootDuplication: true,
+      recursive: true
+    });
+    return new Promise((res, rej) => {
+      stream.on('data', () => { });
+      stream.on('progress', () => { });
+      stream.on('end', () => res());
+      stream.on('error', (err) => rej(err));
+    });
+  }
+
   private async startWorking(address: string) {
     try {
       const zipPath = path.join(this.tempDirectory, address + '.zip');
@@ -83,12 +103,14 @@ class BackupPlugin implements Plugin {
         const fpath = entry.slice(idx + 1);
 
         const res = await this.api.gaia.read(addr, fpath);
+        fs.ensureFileSync(path.join(filesPath, entry));
         res.stream.pipe(fs.createWriteStream(path.join(filesPath, entry), { mode: 0o600 }));
 
         await new Promise(r => setTimeout(r, 500));
       }
       // zip 'em all
-      execSync('lib/7za.exe a -sdel -tzip -mmt1 -mx4 ' + zipPath + ' ' + filesPath + '/*');
+      this.logger.debug('Zipping: ' + zipPath + ', .' + path.sep + path.join(filesPath, '*'));
+      await this.sevenZipAdd(zipPath, '.' + path.sep + path.join(filesPath, '*'));
     } catch(e) {
       this.logger.error(`Error backing up ${address}: ${e.stack || e}`);
     }
@@ -118,9 +140,9 @@ class BackupPlugin implements Plugin {
       this.startWorking(req.user.address);
       res.sendStatus(204);
     });
-    this.router.get('/backup-ready', (req, res) => {
+    this.router.get('/status', (req, res) => {
       res.json({
-        status: this.backupWorking ? 'working' :
+        status: this.backupWorking[req.user.address] ? 'working' :
           fs.existsSync(path.join(this.tempDirectory, req.user.address + '.zip')) ? 'done' :
           'not started'
       });
@@ -129,8 +151,8 @@ class BackupPlugin implements Plugin {
       if(!fs.existsSync(path.join(this.tempDirectory, req.user.address + '.zip')) || this.backupWorking[req.user.address])
         res.sendStatus(403);
       res.download(path.join(this.tempDirectory, req.user.address + '.zip'), (err) => {
-        this.logger.error('Error sending download from backup for address ' + req.user.address + ':');
-        this.logger.error(err);
+        if(err)
+          this.logger.error('Error sending download from backup for address ' + req.user.address + ':', err);
       });
     });
 

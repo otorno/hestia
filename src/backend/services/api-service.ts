@@ -197,7 +197,7 @@ class Api {
     }
 
     if(pluginInfo.authedRouter) {
-      this.pluginRouter.use(prefix, validateUser(), pluginInfo.router, handleError('authed plugin ' + pluginInfo.id));
+      this.pluginRouter.use(prefix, validateUser(), pluginInfo.authedRouter, handleError('authed plugin ' + pluginInfo.id));
 
       if(this.rootPlugin === pluginInfo.id)
         this.router.use('/', validateUser(), pluginInfo.router, handleError('authed root plugin ' + pluginInfo.id));

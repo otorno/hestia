@@ -25,7 +25,6 @@ export interface Config {
   session_secret: string;
   session_name: string;
 
-  admins?: string[];
   whitelist?: string[];
 
   max_blob_size: string | number;

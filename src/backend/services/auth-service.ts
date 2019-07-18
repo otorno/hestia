@@ -11,7 +11,6 @@ import { getLogger } from 'log4js';
 class AuthService {
 
   private whitelist: string[];
-  private admins: string[];
   private serverName: string;
   private validHubUrls: string[];
 
@@ -240,9 +239,6 @@ class AuthService {
     } else if(issuedAt < authTimestamp.getTime())
       throw new AuthError('Token issued before user-defined timestamp.');
 
-    if(!user.admin && this.admins.includes(address))
-      user.admin = true;
-
     await db.updateUser(user);
 
     return user;
@@ -280,7 +276,6 @@ class AuthService {
 
   public init(config: Config) {
     this.whitelist = config.whitelist ? config.whitelist.slice() : null;
-    this.admins = config.admins ? config.admins.slice() : [];
     this.serverName = config.server_name;
     this.validHubUrls = ['http://' + config.server_name].concat(config.valid_hub_urls || []);
   }

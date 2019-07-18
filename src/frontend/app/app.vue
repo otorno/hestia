@@ -53,21 +53,21 @@
             </div>
           </b-dropdown-item>
           <b-dropdown-item @click='connections()'>Connections</b-dropdown-item>
-          <b-dropdown-item @click='backup()'>Backup Everything</b-dropdown-item>
+          <b-dropdown-item :disabled='!api.plugins.backup || backupStatus === "working"' :title='api.plugins.backup ? "" : "No backup plugin found."' @click='backup()'>{{backupText}}</b-dropdown-item>
           <b-dropdown-item @click='logout()'>Logout</b-dropdown-item>
         </b-dropdown>
 
-        <a class='navbar-item flex-item is-hidden-desktop' title='Connections' @click='connections()'>
+        <a class='navbar-item flex-item is-hidden-desktop' @click='connections()'>
           <b-icon icon='link-variant'></b-icon>
           <span style='font-weight:600'>&nbsp;Connections</span>
         </a>
 
-        <a class='navbar-item flex-item is-hidden-desktop' title='Backup Everything' @click='backup()'>
+        <a class='navbar-item flex-item is-hidden-desktop' :disabled='!api.plugins.backup || backupStatus === "working"' :title='api.plugins.backup ? "" : "No backup plugin found."' @click='backup()'>
           <b-icon icon='folder-download'></b-icon>
-          <span style='font-weight:600'>&nbsp;Backup Everything</span>
+          <span style='font-weight:600'>&nbsp;{{backupText}}</span>
         </a>
 
-        <a class='navbar-item flex-item is-hidden-desktop' title='Logout' @click='logout()'>
+        <a class='navbar-item flex-item is-hidden-desktop' @click='logout()'>
           <b-icon icon='logout-variant'></b-icon>
           <span style='font-weight:600'>&nbsp;Logout</span>
         </a>

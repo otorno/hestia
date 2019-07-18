@@ -67,6 +67,7 @@
   "author": "MichaelFedora",
   "license": "MPL-2.0",
   "dependencies": {
+    "7zip-bin": "^5.0.3",
     "@log4js-node/log4js-api": "^1.0.2",
     "@mdi/font": "^3.8.95",
     "axios": "^0.19.0",
@@ -92,6 +93,7 @@
     "lodash": "^4.17.14",
     "log4js": "^4.5.1",
     "luxon": "^1.17.1",
+    "node-7z": "^1.1.1",
     "node-fetch": "^2.6.0",
     "pump": "^3.0.0",
     "qrcode-lite": "^1.2.2",

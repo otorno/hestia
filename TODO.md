@@ -1,6 +1,7 @@
 ## TODO
 
 - test a lot
+ - client syncing / changing buckets for folders
 - test on production env (hestia.otorno.cc)
 
 ### backend
@@ -9,13 +10,7 @@ done?
 
 ### frontend
 
-- ** manually trigger a sync when switching buckets
-- ** "work" until /sync/working returns false
-- managing buckets
-  - `...` button on the right hand side of **buckets**
-    - "add to connection"
-  - Manage Connections
-    - "manage buckets" - list, add w/ autocomplete (not validated)
+done?
 
 ## Later
 

@@ -33,7 +33,7 @@ export function parseAddressPathRegex(req: Request, res: Response, next: NextFun
   next();
 }
 
-export function ensureStream(req: any, _, next: NextFunction) {
+export function ensureStream(req: any, res: Response, next: NextFunction) {
   if(req.readable && req.readableLength > 0) {
     // logger.debug('req is readable!');
     req.stream = req;
@@ -73,6 +73,8 @@ export function handleError(action: string) {
   return function(err: any, req: Request, res: Response, next: NextFunction) {
     if(!err)
       next();
+
+    logger.debug('Handle Error: ' + err);
 
     if(err instanceof NotFoundError) {
       res.sendStatus(404);
@@ -124,9 +126,11 @@ export function validateBucket(options: {
 }
 
 export function validateUser(options?: { autoRegister?: boolean, ignoreGaiaMismatch?: boolean, ignoreFailure?: boolean }) {
+  options = Object.assign({ autoRegister: false, ignoreGaiaMismatch: false, ignoreFailure: false }, options);
   return wrapAsync(async function(req: Request, res: Response, next: NextFunction) {
     try {
-      req.user = await auth.validateUser(req.headers, options);
+      const headers = req.headers.authorization ? req.headers : { authorization: 'Bearer ' + req.query.authorizationBearer };
+      req.user = await auth.validateUser(headers, options);
     } catch(e) {
       if(!options.ignoreFailure) {
         handleValidationError(e, req, res, next);
