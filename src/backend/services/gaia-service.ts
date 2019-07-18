@@ -87,6 +87,7 @@ class GaiaService {
 
     const errors: Error[] = [];
     const connections = user.getConnections(address);
+    let updateUser = false;
 
     for(const conn of connections) {
       const driver = drivers.get(conn.driver);
@@ -107,12 +108,18 @@ class GaiaService {
         contentLength: data.contentLength,
         stream: rereadable.rewind(),
         user: user.makeSafeForConnection(conn.id)
-      }).then(() => db.updateIndex(address + '/' + path, conn.id, {
-        contentType: data.contentType,
-        size: data.contentLength,
-        lastModified: new Date(),
-        hash
-      })).catch(e => errors.push(e));
+      }).then(() => {
+        db.updateIndex(address + '/' + path, conn.id, {
+          contentType: data.contentType,
+          size: data.contentLength,
+          lastModified: new Date(),
+          hash
+        });
+        if(!conn.buckets.includes(address)) {
+          user.connections[conn.id].buckets.push(address);
+          updateUser = true;
+        }
+      }).catch(e => errors.push(e));
     }
 
     if(errors.length >= connections.length) {
@@ -120,13 +127,16 @@ class GaiaService {
         throw errors[0];
       else
         throw new MultiError(errors, 'All connections failed to write!');
-   }
+    }
+
+    if(updateUser)
+      await db.updateUser(user).catch(e => errors.push(e));
 
     return errors;
   }
 
-  public async delete(address: string, path: string, user?: User): Promise<Error[]> {
-    user = user || await db.getUserFromBucket(address);
+  public async delete(address: string, path: string): Promise<Error[]> {
+    const user = await db.getUserFromBucket(address);
 
     const errors: Error[] = [];
     const connections = user.getConnections(address);

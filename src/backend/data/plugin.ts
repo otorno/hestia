@@ -27,7 +27,7 @@ export interface PluginApiInterface {
   gaia: {
     read(address: string, path: string): Promise<{ contentType: string, stream: Readable }>;
     store(address: string, path: string,
-      data: { contentType: string, contentLength: number, stream: Readable }, user?: User): Promise<Error[]>;
+      data: { contentType: string, contentLength: number, stream: Readable }, userAddress?: string): Promise<Error[]>;
     delete(address: string, path: string): Promise<Error[]>;
     listFiles(address: string, page?: number): Promise<{ entries: string[], page?: number }>;
   };
@@ -37,9 +37,9 @@ export interface PluginApiInterface {
     getUserFromBucket(address: string): Promise<User>;
     getAllUsers(): Promise<User[]>;
     // metadata
-    getUserIndex(user: User): Promise<MetadataIndex>;
+    getUserIndex(userAddress: string): Promise<MetadataIndex>;
     getIndexForConnection(connId: string, bucket?: string): Promise<ConnectionMetadataIndex>;
-    getGlobalUserIndex(user: User): Promise<GlobalMetadataIndex>;
+    getGlobalUserIndex(userAddress: string): Promise<GlobalMetadataIndex>;
     getFileInfo(path: string, connId?: string): Promise<Metadata & { connIds: string[] }>;
     updateIndex(path: string, connId: string, metadata: Metadata): Promise<void>;
     deleteIndex(path: string, connId: string): Promise<void>;

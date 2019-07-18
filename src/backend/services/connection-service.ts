@@ -82,6 +82,8 @@ class ConnectionService {
 
   public async store(id: string, user: User, address: string, path: string,
     data: { contentType: string, contentLength: number, stream: Readable }): Promise<void> {
+    user = user || await db.getUserFromBucket(address);
+
     if(!user.connections[id])
       throw new NotFoundError(`No connection with id "${id}" found for user "${user.address}!`);
     if(!data.stream.readable)
@@ -109,6 +111,11 @@ class ConnectionService {
       lastModified: new Date(),
       hash
     });
+
+    if(!user.connections[id].buckets.includes(address)) {
+      user.connections[id].buckets.push(address);
+      await db.updateUser(user);
+    }
   }
 
   public async delete(id: string, user: User, address: string, path: string): Promise<void> {

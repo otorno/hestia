@@ -75,7 +75,7 @@ class GaiaExtraPlugin implements Plugin {
         contentType: req.headers['content-type'],
         contentLength: Number(req.headers['content-length']) || 0,
         stream: (req as any).stream || req
-      }, req.user);
+      }, req.user.address);
 
       if(errors.length > 0) {
         const errs = errors.map(e => {

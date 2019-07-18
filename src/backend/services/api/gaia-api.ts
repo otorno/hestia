@@ -27,7 +27,7 @@ export default function createGaiaRouter(logger: Logger) {
       contentType: req.headers['content-type'],
       contentLength: Number(req.headers['content-length']) || 0,
       stream: (req as any).stream || req
-    }, req.user).catch((e: Error) => [e]);
+    }, req.user.address).catch((e: Error) => [e]);
 
     if(errors.length > 0) {
       const errs = errors.map(e => {
@@ -75,7 +75,7 @@ export default function createGaiaRouter(logger: Logger) {
 
     logger.debug('Gaia - Delete: ', req.params.address, req.params.path);
 
-    const errors = await gaia.delete(req.params.address, req.params.path, req.user);
+    const errors = await gaia.delete(req.params.address, req.params.path);
 
     if(errors.length > 0) {
       const errs = errors.map(e => {

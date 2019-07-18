@@ -10,11 +10,14 @@ done?
 
 ### frontend
 
-done?
+- tweak bucket connections management screen
 
 ## Later
 
 ### backend
+
+- direct links to save bandwidth?
+  - yes if config'd - `dl.dropbox.com` works so that's really good
 
 - index-update-plugin using driver.listfiles
   - backup to .metadata/index.json
@@ -24,20 +27,30 @@ done?
   - when conn starts working, back off
   - in drivers -- check metadata so no doubling jobs?
 
-- backup plugin (1.1)
 - migrate plugin?
-- hestia driver?
+  - can I keep data in the drivers (minus those that are unmigratable like local disk -- new 
+  driver option?) and just export the metadata-index, to save a *ton* of bandwidth?
 
-- implement overarching  `admins` feature or remove from config
-  - what does this even do -- list all users, delete them, etc?
-  - edit config and restart somehow?
+- mail plugin
+  - haraka for SMTP inbound/outbound to other emails
+  - standard http api for cross-hestia "emails"
+  - store subject/plaintext content in db for indexing/searching
+  - use custom js api for everything inbox related (no offense imap)
+  - use "mail" collection
+
+- gaia-extra plugin (v1.1)
+  - temporary files
+  - collections (/{useraddress}/{folder})
+
+- hestia/gaia driver?
+  - can I use another hestia/gaia node as a storage thing itself? probably.
+
+- overarching admin feature (plugin + frontend work)
+  - manage users, whitelist, maybe other options
 
 ### frontend
 
 - move/copy/delete/upload (1.1)
   - dragging!
-- new status/working ui?
-  - overall progress vs current progress (impossible to tell)
-  - list of all working items, with cancel button, to see what's been done and what hasn't
 - "preview pane" for small enough files (no decode)
   - "this file seems encrypted" warning info-bar on top of pane

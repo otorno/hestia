@@ -93,7 +93,7 @@ class SyncPlugin implements Plugin {
 
     } else {
       // [path][cId]{ metadata }
-      const index = await this.api.db.getGlobalUserIndex(user);
+      const index = await this.api.db.getGlobalUserIndex(user.address);
       for(const path in index) if(index[path]) {
         const bestInfo = await this.api.db.getFileInfo(path).catch(e => {
           if(e && e.type === 'not_found_error')

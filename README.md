@@ -2,6 +2,8 @@
 
 *Psuedo-Decentralized Storage Middelware, or in other words, a Multi-Backend Gaia Hub*
 
+![screenshot.png](./gfx/screenshot.png)
+
 Shortcuts:
 - [About / Goals](#about--goals)
 - [Installation / Setup](#installation--setup)

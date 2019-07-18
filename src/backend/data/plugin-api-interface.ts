@@ -44,9 +44,10 @@ export class PluginApi implements PluginApiInterface, InternalPluginApiInterface
     read(address: string, path: string) {
       return gaia.read(address, path);
     },
-    store(address: string, path: string,
-      data: { contentType: string, contentLength: number, stream: Readable }): Promise<Error[]> {
-      return gaia.store(address, path, data);
+    async store(address: string, path: string,
+      data: { contentType: string, contentLength: number, stream: Readable }, userAddress?: string): Promise<Error[]> {
+      const user = userAddress ? await db.getUser(userAddress) : null;
+      return gaia.store(address, path, data, user);
     },
     delete(address: string, path: string): Promise<Error[]> {
       return gaia.delete(address, path);
@@ -78,12 +79,12 @@ export class PluginApi implements PluginApiInterface, InternalPluginApiInterface
       return db.getIndexForConnection(connId, bucket);
     }
 
-    async getGlobalUserIndex(user: User) {
-      return db.getGlobalUserIndex(user);
+    async getGlobalUserIndex(userAddress: string) {
+      return db.getGlobalUserIndex(await db.getUser(userAddress));
     }
 
-    async getUserIndex(user: User) {
-      return db.getUserIndex(user);
+    async getUserIndex(userAddress: string) {
+      return db.getUserIndex(await db.getUser(userAddress));
     }
 
     async getFileInfo(path: string, connId?: string) {
