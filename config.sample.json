@@ -1,35 +1,32 @@
 {
-  "port": 8080,
+  "port": 7070,
   "ip": "0.0.0.0",
-  "server_name": "localhost:8080",
-  "admins": [],
-  "max_blob_size": 25000000,
-  "root_redirect": "/dashboard",
-  "default_driver": "disk",
+  "protocol": "https",
+  "server_name": "hestia.mywebsite.com",
+  "root_plugin": "dashboard",
+  "page_size": 50,
   "drivers": {
-    "udb": {
-      "path": "./default-drivers/user-dropbox",
-      "required": true
-    },
     "disk": {
-      "path": "./default-drivers/disk",
-      "storage_root_directory": "../../hestia-storage",
-      "read_url": "localhost:8080/disk/read",
-      "max_user_size": 25000000,
-      "max_shared_size": 2000000000,
-      "required": false
+      "path": "default-drivers/disk.js",
+      "auto_register": true,
+      "root_only": true,
+      "max_total_storage": "2.5gb",
+      "max_user_storage": "2.5mb",
+      "storage_root_directory": "./hestia-storage"
+    },
+    "udb": {
+      "path": "default-drivers/user-dropbox.js",
+      "client_id": "{myclientid}",
+      "secret": "{mysecret}"
     }
   },
   "plugins": {
-    "encrypt-all": {
-      "path": "./default-plugins/encrypt-all",
-      "key": "keyboardcat"
-    },
-    "sync": {
-      "path": "./default-plugins/sync"
-    },
     "dashboard": {
-      "path": "./default-plugins/dashboard"
+      "path": "default-plugins/dashboard.js"
+    },
+    "backup": {
+      "path": "default-plugins/backup.js",
+      "temp_directory": "./hestia-backup"
     }
   }
 }

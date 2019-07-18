@@ -5,14 +5,11 @@ import * as express from 'express';
 import * as cors from 'cors';
 import * as jsonfile from 'jsonfile';
 import * as helmet from 'helmet';
-import * as session from 'express-session';
 import { getLogger, shutdown } from 'log4js';
 import bodyParser = require('body-parser');
 
 import Config from './data/config';
 import { User } from './data/user';
-import { DriverInfo } from './data/driver';
-import { RethinkSessionStore } from './data/rethink-session-store';
 import { parseBytes } from './util';
 
 import db from './services/database-service';
@@ -69,14 +66,6 @@ db.init(config.db_host || '127.0.0.1', config.db_port || 28015).then(async () =>
       scriptSrc: ["'self'", "'unsafe-eval'"], // tslint:disable-line
     }
   }));
-
-  /*app.use(session({
-    store: new RethinkSessionStore(),
-    secret: config.session_secret || 'keyboard cat',
-    name: config.session_name || 'hestia',
-    resave: false,
-    saveUninitialized: false
-  }));*/
 
   app.use((req, res, next) => {
     const host = req.headers.origin || req.headers.host || req.ip;

@@ -17,7 +17,7 @@ import { find, groupBy, throttleTime, mergeAll } from 'rxjs/operators';
 const METADATA_DIRNAME = '.hestia-metadata';
 
 interface UserDropboxDriverConfig extends DriverConfig {
-  clientId: string;
+  client_id: string;
   secret: string;
   page_size: number;
   cache_time: number;
@@ -213,7 +213,7 @@ https://github.com/dropbox/dropbox-sdk-js/issues/80#issuecomment-283189888
 
 class UserDropboxDriver implements Driver {
 
-  private clientId: string;
+  private client_id: string;
   private secret: string;
   private pageSize: number;
 
@@ -351,7 +351,7 @@ class UserDropboxDriver implements Driver {
 
   async init(id: string, config: UserDropboxDriverConfig, api: DriverApiInterface) {
 
-    this.clientId = String(config.clientId);
+    this.client_id = String(config.client_id);
     this.secret = String(config.secret);
     this.pageSize = Number(config.page_size) || 50;
 
@@ -395,7 +395,7 @@ class UserDropboxDriver implements Driver {
   }
 
   async register(user?: User, redirectUri?: string, req?: { headers: { [key: string]: string }, body: any, query: any }) {
-    const dbx = new Dropbox({ clientId: this.clientId, fetch });
+    const dbx = new Dropbox({ clientId: this.client_id, fetch });
     dbx.setClientSecret(this.secret);
 
     if(user) {

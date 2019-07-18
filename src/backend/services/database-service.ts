@@ -1,7 +1,6 @@
-import { r, MasterPool, RTable, Connection, RDatum } from 'rethinkdb-ts';
+import { r, MasterPool, RTable, RDatum } from 'rethinkdb-ts';
 import { User, SerializedUser } from '../data/user';
 import { NotFoundError } from '../data/hestia-errors';
-import { SessionEntry } from '../data/session-entry';
 import { getLogger } from 'log4js';
 import {
   SerializedMetadataIndexEntry,
@@ -17,7 +16,7 @@ class DatabaseService {
   private pool: MasterPool;
   private logger = getLogger('services.db');
 
-  public get apiTableNames() { return ['users', 'sessions', 'metadata']; }
+  public get apiTableNames() { return ['users', 'metadata']; }
 
   public get apiDbName() { return 'hestia_api'; }
   public get dataDbName() { return 'hestia_data'; }
@@ -28,7 +27,6 @@ class DatabaseService {
   public get dataDb() { return r.db(this.dataDbName); }
 
   public get users(): RTable<SerializedUser> { return this.apiDb.table('users'); }
-  public get sessions(): RTable<SessionEntry> { return this.apiDb.table('sessions'); }
   public get metadata(): RTable<SerializedMetadataIndexEntry> { return this.apiDb.table('metadata'); }
 
   public async ensurePluginTable(pluginId: string) {
@@ -76,13 +74,6 @@ class DatabaseService {
         await this.users.indexCreate('drivers', { multi: true }).run()
           .then(() => this.users.indexWait('drivers').run())
           .then(a => this.logger.info(`Created drivers index in user table (api db).`));
-    });
-
-    await this.sessions.indexList().run().then(async result => {
-      if(!result.includes('expires'))
-        await this.sessions.indexCreate('expires').run()
-          .then(() => this.users.indexWait('expires').run())
-          .then(a => this.logger.info(`Created expires index in session table (api db).`));
     });
 
     await this.metadata.indexList().run().then(async result => {

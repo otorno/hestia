@@ -22,9 +22,6 @@ export interface Config {
   db_host: string;
   db_port: number;
 
-  session_secret: string;
-  session_name: string;
-
   whitelist?: string[];
 
   max_blob_size: string | number;
