@@ -4,6 +4,7 @@ import { Plugin, PluginInfo, PluginApiInterface } from '../data/plugin';
 import { PluginApi } from '../data/plugin-api-interface';
 import { configIdRegex } from '../util';
 import { getLogger } from 'log4js';
+import { NotFoundError } from '../data/hestia-errors';
 
 class PluginService {
 
@@ -15,13 +16,19 @@ class PluginService {
   public get onPluginInit() { return this._onPluginInit.asObservable(); }
 
   public get(id: string) {
-    return this.plugins[id];
+    const ret = this.plugins[id];
+    if(!ret)
+      throw new NotFoundError('No plugin found with Id "' + id + '"!');
+    return ret;
   }
 
   public getInfo(): PluginInfo[];
   public getInfo(id: string): PluginInfo;
   public getInfo(id?: string) {
-    return id ? this.pluginInfo.find(a => a.id === id) : this.pluginInfo;
+    const ret = id ? this.pluginInfo.find(a => a.id === id) : this.pluginInfo;
+    if(!ret)
+      throw new NotFoundError('No plugin found with Id "' + id + '"!');
+    return ret;
   }
 
   private ticking: { [key: string]: boolean } = { };
