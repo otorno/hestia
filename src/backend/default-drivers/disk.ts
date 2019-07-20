@@ -40,6 +40,8 @@ class DiskDriver implements Driver {
 
   /// see: https://github.com/jprichardson/node-fs-extra/issues/656#issuecomment-500135176
   private getSize(p: string): number {
+    if(!fs.existsSync(p))
+      return 0;
     const stat = fs.statSync(p);
     if(stat.isFile())
       return stat.size;
@@ -190,7 +192,13 @@ class DiskDriver implements Driver {
     if(this.maxTotalStorage && this.getSize(this.storageRootDirectory) >= this.maxTotalStorage)
       this.logger.warn(`Disk (driver) has reached the alloted size limit!`);
 
-    return { name: 'Harddisk', longId: 'io.github.michaelfedora.hestia.disk', icon, autoRegisterable: true };
+    return {
+      name: 'Harddisk',
+      longId: 'io.github.michaelfedora.hestia.disk',
+      icon,
+      multiInstance: true,
+      autoRegisterable: true
+    };
   }
 
   async getInfo(user: User) {
@@ -220,4 +228,6 @@ class DiskDriver implements Driver {
   }
 }
 
-export default new DiskDriver();
+
+// multi-instance!
+export default Object.freeze({ create() { return new DiskDriver(); } });

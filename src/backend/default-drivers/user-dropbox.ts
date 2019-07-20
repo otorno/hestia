@@ -380,7 +380,7 @@ class UserDropboxDriver implements Driver {
       name: 'Dropbox',
       longId: 'io.github.michaelfedora.hestia.userDropbox',
       icon,
-      multi: true
+      multiUser: true
     };
   }
 
@@ -432,4 +432,6 @@ class UserDropboxDriver implements Driver {
   }
 }
 
-export default new UserDropboxDriver();
+const driver = new UserDropboxDriver(); // singleton
+
+export default Object.freeze({ create() { return driver; } });

@@ -7,6 +7,7 @@ import { getLogger } from 'log4js';
 import { User } from '../data/user';
 import * as uuid from 'uuid';
 import db from './database-service';
+import { NotFoundError } from '../data/hestia-errors';
 
 class DriverService {
 
@@ -18,13 +19,19 @@ class DriverService {
   public get onDriverInit() { return this._onDriverInit.asObservable(); }
 
   public get(id: string) {
-    return this.drivers[id];
+    const ret = this.drivers[id];
+    if(!ret)
+      throw new NotFoundError('No driver found with Id "' + id + '"!');
+    return ret;
   }
 
   public getInfo(): DriverInfo[];
   public getInfo(id: string): DriverInfo;
   public getInfo(id?: string) {
-    return id ? this.driverInfo.find(a => a.id === id) : this.driverInfo;
+    const ret = id ? this.driverInfo.find(a => a.id === id) : this.driverInfo;
+    if(!ret)
+      throw new NotFoundError('No driver found with Id "' + id + '"!');
+    return ret;
   }
 
   public getAutoRegisterable() {
@@ -107,15 +114,19 @@ class DriverService {
         if(path.startsWith('default-drivers'))
           path = '../' + path;
 
-        const driver: Driver = (await import(path)).default;
+        const driver: Driver = (await import(path)).default.create();
         const initData = await driver.init(driverId, driverConfig, new DriverApi(driverId));
 
+        driverInfo.name = driverConfig.name || initData.name;
         driverInfo.longId = initData.longId;
-        if(this.driverInfo.find(a => a.longId === initData.longId))
+        if(!initData.multiInstance && this.driverInfo.find(a => a.longId === initData.longId))
           throw new Error('Driver with longId "' + initData.longId + '" already exists!');
-        driverInfo.name = initData.name;
-        driverInfo.multi = initData.multi;
+
+        if(initData.multiUser)
+          driverInfo.multiUser = true;
+
         driverInfo.icon = driverInfo.icon || initData.icon;
+
         if(Boolean(driverConfig.auto_register) && Boolean(initData.autoRegisterable)) {
           driverInfo.autoRegister = true;
           this.logger.info('Will auto-register driver "' + driverInfo.id + '"!');

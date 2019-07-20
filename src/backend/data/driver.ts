@@ -21,7 +21,7 @@ export interface DriverInfo {
   name: string;
   icon: string | Buffer;
   whitelist?: string[];
-  multi?: boolean;
+  multiUser?: boolean;
   autoRegister?: boolean;
   rootOnly?: boolean;
 }
@@ -65,7 +65,8 @@ export interface Driver {
     name: string,
     longId: string,
     icon: Buffer,
-    multi?: boolean,
+    multiInstance?: boolean,
+    multiUser?: boolean,
     autoRegisterable?: boolean
   }>;
 

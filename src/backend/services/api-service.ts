@@ -125,7 +125,7 @@ class Api {
         }
       }
 
-      if(user && Object.values(user.connections || { }).find(a => a && a.driver === driverInfo.id) && !driverInfo.multi)
+      if(user && Object.values(user.connections || { }).find(a => a && a.driver === driverInfo.id) && !driverInfo.multiUser)
         throw new NotAllowedError('You can only register with this driver once.');
 
       const ret = await driver.register(

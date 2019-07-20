@@ -26,16 +26,22 @@ class MetaService {
     });
   }
 
-  public drivers(): { available: { id: string, name: string, longId: string, rootOnly?: boolean, multi?: boolean }[] };
+  public drivers(): { available: { id: string, name: string, longId: string, rootOnly?: boolean, multiUser?: boolean }[] };
   public drivers(user: User): {
     current: { id: string, name: string,  driver: string, default?: boolean, buckets: string[] }[],
-    available: { id: string, name: string, longId: string, rootOnly?: boolean, multi?: boolean }[]
+    available: { id: string, name: string, longId: string, rootOnly?: boolean, multiUser?: boolean }[]
   };
   public drivers(user?: User): {
     current?: { id: string, name: string, driver: string, default?: boolean, buckets: string[] }[],
-    available: { id: string, name: string, longId: string, rootOnly?: boolean, multi?: boolean }[]
+    available: { id: string, name: string, longId: string, rootOnly?: boolean, multiUser?: boolean }[]
   } {
-    const available = drivers.getInfo().map(a => ({ id: a.id, name: a.name, longId: a.longId, multi: a.multi, rootOnly: a.rootOnly }));
+    const available = drivers.getInfo().map(a => ({
+      id: a.id,
+      name: a.name,
+      longId: a.longId,
+      multiUser: a.multiUser,
+      rootOnly: a.rootOnly
+    }));
 
     if(!user)
       return { available };

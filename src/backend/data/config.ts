@@ -1,5 +1,6 @@
 export interface DriverConfig {
   path: string;
+  name?: string;
   icon_url?: string;
   whitelist?: string[];
   auto_register?: boolean;
