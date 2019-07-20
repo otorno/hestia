@@ -39,8 +39,8 @@ export default (Vue as VVue).component('hestia-connections', {
       return this.api.getDriverIconUrl(driverId);
       // return location.origin + '/api/v1/drivers/' + driverId + '/icon';
     },
-    getDriverDisabled(driver: { multi: boolean, id: string }) {
-      return !driver.multi && this.connections.find(a => a.driver === driver.id);
+    getDriverDisabled(driver: { multiUser: boolean, id: string }) {
+      return !driver.multiUser && this.connections.find(a => a.driver === driver.id);
     },
     handleError(e: Error, action: string) {
       this.$dialog.alert({
