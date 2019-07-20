@@ -311,6 +311,13 @@ class DatabaseService {
     return this.metadata.getAll(connId, { index: 'connId' }).delete().run();
   }
 
+  public async updateConnectionBuckets(connId: string, addresses: string[]) {
+    const matchers = r.expr(addresses.map(a => '^' + a));
+    this.metadata.getAll(connId, { index: 'connId' }).filter(
+      doc => matchers.contains(matcher => doc('path').match(matcher)).not())
+      .delete().run();
+  }
+
   private lastTick = Date.now();
   private trimDeletedTickWorking = false;
   public async trimDeletedTick() {

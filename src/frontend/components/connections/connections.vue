@@ -14,7 +14,7 @@
       <button class='button is-inverted' :class='{ "is-primary": conn.default, "is-black": !conn.default }' :disabled='conn.default || conn.rootOnly'
         :title='conn.rootOnly ? "Cannot use limited storage as default" : conn.default ? "Default connection" : "Set default connection"'
         @click='setDefault(conn.id)'><b-icon :icon='conn.default ? "star" : "star-outline"'></b-icon></button>
-      <img :src='getIcon(conn.driver)' />
+      <img :src='conn.icon' />
       <span>{{conn.name}}</span>
       <b-icon v-if='conn.rootOnly' icon='folder-alert' style='opacity: 0.5' title='Only stores root directory files (i.e. profile.json)'></b-icon>
       <b-icon v-if='conn.limitedSpace' icon='folder-alert' class='has-text-danger' style='opacity: 0.5' title='Low on space'></b-icon>
@@ -37,7 +37,7 @@
       <button class='button is-success is-inverted' :disabled='getDriverDisabled(d)'
       :title='getDriverDisabled(d) ? "Cannot register a non-multi driver again" : "Register driver"'
       @click='register(d.id)'><b-icon icon='plus-circle'></b-icon></button>
-      <img :src='getIcon(d.id)' />
+      <img :src='d.icon' />
       <span>{{d.name}}</span>
       <b-icon v-if='d.rootOnly' icon='folder-alert' style='opacity: 0.5' title='Only stores root directory files (i.e. profile.json)'></b-icon>
     </div>

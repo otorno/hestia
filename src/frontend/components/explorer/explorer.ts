@@ -79,6 +79,7 @@ export default (Vue as VVue).component('hestia-explorer', {
 
       nameAnnotations: { } as  { [key: string]: string },
       connections: { } as { [id: string]: { icon: string, name: string } },
+      connString: '',
       apps: [] as { name: string, website: string, address: string }[],
     };
   },
@@ -190,6 +191,9 @@ export default (Vue as VVue).component('hestia-explorer', {
     formatDate(time: number) {
       return DateTime.fromMillis(time, { zone: 'utc' }).toLocal().toLocaleString(DateTime.DATETIME_SHORT);
     },
+    getConn(connId: string) {
+      return this.connections[connId] || { icon: '', name: '{null}' };
+    },
     getFileIcon(contentType: string): { fileIcon: string, fileIconColor: string } {
       if(contentType === 'application/json')
         return { fileIcon: 'file-xml', fileIconColor: '#f44336' };
@@ -219,12 +223,12 @@ export default (Vue as VVue).component('hestia-explorer', {
         switch(this.sortByName) {
           case 'conn':
             if(a.conns.length === b.conns.length) {
-              const aNames = a.conns.map(n => this.connections[n].name);
-              const bNames = b.conns.map(n => this.connections[n].name);
+              const aNames = a.conns.map(n => this.getConn(n).name);
+              const bNames = b.conns.map(n => this.getConn(n).name);
               return aNames.sort()[0].localeCompare(bNames.sort()[0]);
             } else return b.conns.length - a.conns.length;
-          case 'size': return a.rawSize - b.rawSize;
-          case 'mod': return a.rawLastModified - b.rawLastModified;
+          case 'size': return b.rawSize - a.rawSize;
+          case 'mod': return b.rawLastModified - a.rawLastModified;
           case 'name':
           default:
             if(this.useFamiliar) {
@@ -248,12 +252,22 @@ export default (Vue as VVue).component('hestia-explorer', {
       }
 
     },
-    async listFiles() { // make index
+    async listFiles(connections?: { // just to not call /api/v1/drivers twice
+        id: string;
+        name: string;
+        driver: string;
+        default?: boolean;
+        buckets: string[];
+    }[]) { // make index
       this.workingOn = 'Fetching & indexing files...';
 
+      connections = connections || (await this.api.meta.drivers()).data.current;
+      const connString = JSON.stringify(connections);
+
       const hash = (await this.api.user.listFiles({ global: true, hash: true })).data;
-      if(this.indexHash && this.indexHash === hash)
+      if(this.connString === connString && this.indexHash && this.indexHash === hash)
         return;
+      this.connString = connString;
       this.indexHash = hash;
 
       const entries = (await this.api.user.listFiles({ global: true })).data;
@@ -271,6 +285,9 @@ export default (Vue as VVue).component('hestia-explorer', {
         /*currentPath++;
         this.workingOn = 'Indexing files (' + currentPath + '/' + maxPath + ')...';
         this.progress = currentPath / maxPath;*/
+        const allConnIds = Object.keys(entries[path]);
+        const oldConnIds = connections.filter(a => !allConnIds.includes(a.id) && a.buckets.find(b => path.startsWith(b))).map(a => a.id);
+        if(oldConnIds.length > 0) console.log('Found old connections: ', oldConnIds.map(a => this.getConn(a).name));
         for(const connId in entries[path]) if(entries[path][connId]) {
 
           const entry = entries[path][connId];
@@ -293,7 +310,7 @@ export default (Vue as VVue).component('hestia-explorer', {
                   lastModified: this.formatDate(0),
                   rawLastModified: 0,
                   conns: [connId],
-                  oldConns: []
+                  oldConns: oldConnIds
                 });
               }
             }
@@ -314,7 +331,7 @@ export default (Vue as VVue).component('hestia-explorer', {
               rawLastModified: rawLastModified,
               lastModified: this.formatDate(rawLastModified),
               conns: [connId],
-              oldConns: [],
+              oldConns: oldConnIds.sort(),
               contentType: entry.contentType,
               ...this.getFileIcon(entry.contentType)
             };
@@ -323,7 +340,7 @@ export default (Vue as VVue).component('hestia-explorer', {
             // same hash
           } else if(file.hash === entry.hash) {
             if(!file.conns.find(a => a === connId))
-              file.conns.push(connId);
+              file.conns = [ ...file.conns, connId].sort();
 
             if(oldestLatestModifiedDates[path].latest < rawLastModified) {
               oldestLatestModifiedDates[path].latest = rawLastModified;
@@ -340,7 +357,7 @@ export default (Vue as VVue).component('hestia-explorer', {
             file.size = filesize(entry.size);
             file.rawLastModified = rawLastModified;
             file.lastModified = this.formatDate(rawLastModified);
-            file.oldConns = [...file.oldConns, ...file.conns];
+            file.oldConns = [...file.oldConns, ...file.conns].sort();
             file.conns = [connId];
             file.contentType = entry.contentType;
             const icon = this.getFileIcon(entry.contentType);
@@ -352,7 +369,7 @@ export default (Vue as VVue).component('hestia-explorer', {
             if(file.conns.find(a => a === connId))
               file.conns = file.conns.filter(a => a !== connId);
             if(!file.oldConns.find(a => a === connId))
-              file.oldConns.push(connId);
+              file.oldConns = [...file.oldConns, connId].sort();
           }
         }
       }
@@ -402,19 +419,21 @@ export default (Vue as VVue).component('hestia-explorer', {
           folder.size = filesize(totalSize);
           folder.rawLastModified = lastModified;
           folder.lastModified = this.formatDate(lastModified);
-          folder.oldConns = Object.keys(oldConns);
-          folder.conns = Object.keys(conns).filter(a => !oldConns[a]);
+          folder.oldConns = Object.keys(oldConns).sort();
+          folder.conns = Object.keys(conns).filter(a => !oldConns[a]).sort();
           folder.itemCount = itemCount;
         } else {
           this.rootInfo.rawSize = totalSize;
           this.rootInfo.size = filesize(totalSize);
           this.rootInfo.rawLastModified = lastModified;
           this.rootInfo.lastModified = this.formatDate(lastModified);
-          this.rootInfo.oldConns = Object.keys(oldConns);
-          this.rootInfo.conns = Object.keys(conns).filter(a => !oldConns[a]);
+          this.rootInfo.oldConns = Object.keys(oldConns).sort();
+          this.rootInfo.conns = Object.keys(conns).filter(a => !oldConns[a]).sort();
           this.rootInfo.itemCount = itemCount;
         }
       }
+      this.index = index;
+      this.$forceUpdate();
       // this.workingOn = '';
       // this.progress = 0;
     },
@@ -453,6 +472,7 @@ export default (Vue as VVue).component('hestia-explorer', {
           name: conn.name
         };
       }
+      return res.data.current;
     },
     async refresh() {
       if(this.working)
@@ -462,7 +482,7 @@ export default (Vue as VVue).component('hestia-explorer', {
       this.workingOn = 'Refreshing';
 
       return Promise.all([this.getApps(), this.getConnections()])
-        .then(() => this.listFiles())
+        .then(([a, b]) => this.listFiles(b))
         .catch(err => this.handleError(err, 'listing files'))
         .then(() => { this.working = false; this.workingOn = ''; });
     },
@@ -699,12 +719,12 @@ export default (Vue as VVue).component('hestia-explorer', {
           this.workingOn = 'Migrating ' + entry;
           this.progress = i / index.entries.length;
           const res = await axios.get(index.url_prefix + entry);
-          const headers = { authorization: 'bearer ' + this.token, 'content-type': res.headers['content-type'] };
+          // const headers = { authorization: 'bearer ' + this.token, 'content-type': res.headers['content-type'] };
           // await axios.post(location.origin + '/gaia/store/' + entry, res.data, { headers });
           await this.api.gaia.storeRaw(entry, {
             data: res.data,
-            contentType: headers['content-type'],
-            contentLength: headers['content-length']
+            contentType: res.headers['content-type'],
+            contentLength: res.headers['content-length']
           });
           await new Promise(r => setTimeout(r, 500));
         }
@@ -713,6 +733,8 @@ export default (Vue as VVue).component('hestia-explorer', {
       }
       this.working = false;
       this.workingOn = '';
+      this.progress = 0;
+      return this.refresh();
     },
     manageConnections(item?: EntryInfo) {
       if(this.working)
@@ -728,71 +750,113 @@ export default (Vue as VVue).component('hestia-explorer', {
       }
 
       this.$modal.open({
-        props: { token: this.token, bucket },
+        props: { token: this.token, bucket, rootDir: this.userdata.identityAddress === bucket },
         component: BucketConnectionsModal,
         canCancel: true,
         parent: this,
         events: {
-          close: () => this.sync(bucket, '/')
+          close: () => this.refresh().then(() => this.sync(bucket, '/', false))
         }
       });
     },
-    async syncFile(item: EntryInfo, dir: string) {
-      if(!item.oldConns.length)
+    async refreshAndSync() {
+      if(this.working)
         return;
+      await this.refresh();
+      this.working = true;
+      this.workingOn = 'Syncing...';
+      let worked = false;
+      for(const folder of this.index['/'].folders) {
+        worked = await this.syncFolder(folder, '/') || worked;
+      }
+      if(worked)
+        await this.listFiles();
+      this.working = false;
+      this.workingOn = '';
+    },
+    async syncFile(item: EntryInfo, dir: string) {
+      this.workingOn = 'Syncing file ' + dir + item.name + '';
+      const path = (dir + item.name).replace(/^\//, '');
+      if(!item.oldConns.length)
+        return false;
       for(const oldConn of item.oldConns) {
-        const res = await this.api.gaia.readRaw(dir + item.name);
-        await this.api.connections.storeRaw(oldConn, dir + item.name, {
-          contentType: res.headers['Content-Type'],
-          contentLength: res.headers['Content-Length'],
+        const res = await this.api.gaia.readRaw(path);
+        await this.api.connections.storeRaw(oldConn, path, {
+          contentType: res.headers['content-type'],
+          contentLength: res.headers['content-length'],
           data: res.data
         });
       }
+      return true;
     },
     async syncFolder(item: EntryInfo, dir: string) {
       if(!item.oldConns.length)
-        return;
+        return false;
       const path = dir + item.name + '/';
       const index = this.index[path];
       if(!index)
-        return;
-      for(const file of index.files)
-        await this.syncFile(file, path);
+        return false;
+      let progressIt = 0;
+      let worked = false;
+      for(const file of index.files) {
+        worked = await this.syncFile(file, path) || worked;
+        this.progress = (++progressIt) / index.files.length;
+      }
       for(const folder of index.folders)
-        await this.syncFolder(folder, path);
+        worked = await this.syncFolder(folder, path) || worked;
+      return worked;
     },
     async syncDir() {
+      if(this.working)
+        return;
+
       if(this.dir === '/') {
+        this.working = true;
+        this.workingOn = 'Syncing directory...';
         if(!this.rootInfo.oldConns.length)
             return;
         const index = this.index['/'];
         if(!index)
           return;
-        for(const file of index.files)
-          await this.syncFile(file, '/');
+        let progressIt = 0;
+        let worked = false;
+        for(const file of index.files) {
+          worked = await this.syncFile(file, '/') || worked;
+          this.progress = (++progressIt) / index.files.length;
+        }
         for(const folder of index.folders)
-          await this.syncFolder(folder, '/');
+          worked = await this.syncFolder(folder, '/') || worked;
+
+        if(worked)
+          await this.listFiles();
+        this.working = false;
+        this.workingOn = '';
+        this.progress = 0;
       } else {
         const dir = this.dir.slice(0, this.dir.lastIndexOf('/', this.dir.length - 2) + 1);
         return this.sync(this.dirInfo.name, dir);
       }
     },
-    async sync(itemName: string, dir?: string) {
+    async sync(itemName: string, dir?: string, refresh: boolean = true) {
       if(this.working)
         return;
       this.working = true;
       this.workingOn = 'Syncing ' + itemName + '...';
       dir = dir || this.dir;
-      await this.listFiles();
+      if(refresh)
+        await this.listFiles();
       if(this.index[dir]) {
+        let worked = false;
         let item = this.index[dir].files.find(a => a .name === itemName);
         if(item)
-          await this.syncFile(item, dir);
+          worked = await this.syncFile(item, dir);
         else {
           item = this.index[dir].folders.find(a => a.name === itemName);
           if(item)
-            await this.syncFolder(item, dir);
+            worked = await this.syncFolder(item, dir);
         }
+        if(worked)
+          await this.listFiles();
       }
       this.working = false;
       this.workingOn = '';

@@ -10,7 +10,7 @@ done?
 
 ### frontend
 
-- tweak bucket connections management screen
+- delete files on connection remove
 
 ## Later
 

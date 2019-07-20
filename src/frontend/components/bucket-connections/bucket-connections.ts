@@ -3,7 +3,7 @@ import { VVue } from 'frontend/vvue';
 import { HestiaApi } from 'common/api/api';
 
 export default (Vue as VVue).component('hestia-bucket-connections', {
-  props: { token: { type: String }, bucket: { type: String } },
+  props: { token: { type: String }, bucket: { type: String }, rootDir: { type: Boolean, default: false } },
   data() {
     return {
       connections: [] as {
@@ -13,9 +13,10 @@ export default (Vue as VVue).component('hestia-bucket-connections', {
         default?: boolean;
         buckets: string[];
         icon?: string;
-        active?: boolean;
         currentActive?: boolean;
+        rootOnly?: boolean;
       }[],
+      active: [] as boolean[],
       working: false,
       closing: false,
       api: new HestiaApi(() => (this as any).token)
@@ -23,8 +24,8 @@ export default (Vue as VVue).component('hestia-bucket-connections', {
   },
   computed: {
     headers(): { authorization: string } { return { authorization: 'bearer ' + this.token }; },
-    changed(): boolean { return Boolean(this.connections.find(a => a.active !== a.currentActive)); },
-    amountActive(): number { return this.connections.reduce((acc, v) => acc + (v.active ? 1 : 0), 0); }
+    changed(): boolean { return Boolean(this.connections.find((a, i) => this.active[i] !== a.currentActive)); },
+    amountActive(): number { return this.connections.reduce((acc, v, i) => acc + (this.active[i] ? 1 : 0), 0); }
   },
   async mounted() {
     await this.refresh();
@@ -38,8 +39,8 @@ export default (Vue as VVue).component('hestia-bucket-connections', {
       console.error(e);
     },
     reset() {
-      for(const conn of this.connections)
-        conn.active = conn.currentActive;
+      for(let i = 0; i < this.connections.length; i++)
+        this.active[i] = this.connections[i].currentActive;
     },
     async close(skip?: boolean) {
       if(this.closing)
@@ -51,14 +52,39 @@ export default (Vue as VVue).component('hestia-bucket-connections', {
       this.closing = true;
 
       if(this.changed) {
-        for(const conn of this.connections.filter(a => a.active !== a.currentActive)) {
-          let newBuckets: string[];
-          if(conn.active)
-            newBuckets = [...conn.buckets, this.bucket];
-          else
-            newBuckets = conn.buckets.filter(a => a !== this.bucket);
-          await this.api.connections.setBuckets(conn.id, newBuckets)
-            .catch(e => console.error('Error changing buckets for conn ' + conn.name + ': ', e));
+        for(let i = 0, active = this.active[i], conn = this.connections[i];
+          i < this.connections.length; i++, active = this.active[i], conn = this.connections[i]) if(conn.currentActive !== active) {
+
+          try {
+            let newBuckets: string[];
+            if(active) {
+              newBuckets = [...conn.buckets, this.bucket];
+              // sync is handled back in hestia explorer
+            } else {
+              newBuckets = conn.buckets.filter(a => a !== this.bucket);
+              // delete excess files before setting buckets
+              const list: {
+                path: string;
+                size: number;
+                hash: string;
+                lastModified: string;
+              }[] = [];
+
+              let page = 0;
+              do {
+                const sublist = (await this.api.connections.listFiles(conn.id, this.bucket)).data;
+                page = sublist.page;
+                list.push(...sublist.entries);
+              } while(page);
+              for(const entry of list) {
+                await this.api.connections.deleteFileRaw(conn.id, entry.path);
+              }
+            }
+
+            await this.api.connections.setBuckets(conn.id, newBuckets);
+          } catch(e) {
+            console.error('Error changing buckets for conn ' + conn.name + ': ', e);
+          }
         }
       }
       this.$emit('close');
@@ -69,14 +95,16 @@ export default (Vue as VVue).component('hestia-bucket-connections', {
       this.working = true;
       try {
         // const drivers = await axios.get(location.origin + '/api/v1/drivers', { headers: this.headers });
-        this.connections = (await this.api.meta.drivers()).data.current;
-        for(const conn of this.connections) {
+        const res = (await this.api.meta.drivers()).data;
+        this.connections = res.current.filter(c => Boolean(res.available.find(d => d.id === c.driver)));
+        for(let i = 0, conn = this.connections[i]; i < this.connections.length; i++, conn = this.connections[i]) {
           conn.icon = this.api.getDriverIconUrl(conn.driver);
+          conn.rootOnly = res.available.find(a => a.id === conn.driver).rootOnly || false;
           if(conn.buckets.find(a => a === this.bucket)) {
-            conn.active = true;
+            this.active[i] = true;
             conn.currentActive = true;
           } else {
-            conn.active = false;
+            this.active[i] = false;
             conn.currentActive = false;
           }
         }

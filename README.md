@@ -123,6 +123,7 @@ interface Config {
   drivers: {
     [id: string]: { // this driver ID
       path: string; // the path to the driver for `import({path})`
+      name?: string; // (optional) custom name for the driver
       icon_url?: string; // (optional) the url for the icon to use
       whitelist?: string[]; // (optional) A list of addresses that are whitelisted for the driver
       auto_register?: boolean; // (optional) whether or not the driver should be auto-added to users

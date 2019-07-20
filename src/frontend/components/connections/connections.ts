@@ -10,6 +10,7 @@ export default (Vue as VVue).component('hestia-connections', {
       connections: [] as {
         id: string;
         name: string;
+        icon?: string;
         driver: string;
         default?: boolean;
         noDriver?: boolean;
@@ -21,6 +22,7 @@ export default (Vue as VVue).component('hestia-connections', {
       drivers: [] as {
         id: string;
         name: string;
+        icon?: string;
         multi?: boolean;
         rootOnly?: boolean;
       }[],
@@ -61,6 +63,7 @@ export default (Vue as VVue).component('hestia-connections', {
         this.handleError(e, 'unregister');
       }
       this.working = false;
+      return this.refresh();
     },
     register(driverId: string) {
       const w = window.open();
@@ -97,13 +100,15 @@ export default (Vue as VVue).component('hestia-connections', {
         // const drivers = await axios.get(location.origin + '/api/v1/drivers', { headers: this.headers });
         const drivers = await this.api.meta.drivers();
         this.connections = drivers.data.current;
-        this.drivers = drivers.data.available;
+        this.drivers = drivers.data.available.map(a => ({ ...a, icon: this.api.getDriverIconUrl(a.id) }));
         for(const conn of this.connections) {
           const driver = this.drivers.find(a => a.id === conn.driver);
-          if(driver)
+          if(driver) {
             conn.rootOnly = driver.rootOnly;
-          else
+            conn.icon = driver.icon;
+          } else
             conn.noDriver = true;
+
           // await axios.get(location.origin + '/api/v1/connections/' + conn.id + '/info', { headers: this.headers })
           await this.api.connections.getInfo(conn.id)
             .then(res => {

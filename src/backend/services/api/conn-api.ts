@@ -27,7 +27,7 @@ export default function createConnectionApi(logger: Logger) {
   }), handleError('delete connection'));
 
   router.post('/set-buckets', validateUser(), json(), wrapAsync(async (req, res) => {
-    if(!(req.body instanceof Array) || !(req.body.find(a => typeof a !== 'string')))
+    if(!(req.body instanceof Array && !req.body.find(a => typeof a !== 'string')))
       throw new MalformedError('Body should be a string array in JSON format');
     await connections.setBuckets(req.params.id, req.user, req.body);
     res.sendStatus(204);
@@ -63,7 +63,7 @@ export default function createConnectionApi(logger: Logger) {
   router.delete(new RegExp(`/delete/${ADDRESS_PATH_REGEX}`), json(),
     parseAddressPathRegex, validateUser(),
     wrapAsync(async (req, res) => {
-    await connections.delete(req.params.id, req.params.address, req.params.path, req.user);
+    await connections.delete(req.params.id, req.user, req.params.address, req.params.path);
     res.sendStatus(202);
   }), handleError('gaia delete'));
 

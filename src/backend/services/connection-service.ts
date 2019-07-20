@@ -183,6 +183,7 @@ class ConnectionService {
 
     user.connections[id].buckets = addresses;
 
+    await db.updateConnectionBuckets(id, addresses);
     await db.updateUser(user);
   }
 }

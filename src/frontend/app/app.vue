@@ -76,9 +76,7 @@
   </nav>
 
   <div id='body'>
-    <transition name='fade'>
-      <router-view></router-view>
-    </transition>
+    <hestia-explorer ref='explorer'></hestia-explorer>
   </div>
 
   <div id='footer'>

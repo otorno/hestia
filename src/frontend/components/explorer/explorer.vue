@@ -48,8 +48,8 @@
           <span>{{useFamiliar && nameAnnotations[folder.name] ? '&ldquo;' + nameAnnotations[folder.name] + '&rdquo;' : folder.name}}</span>
         </div>
         <div class='conn-group'>
-          <span v-for='connId of folder.conns' :key='connId' :title='connections[connId].name'><img style='max-height: 100%' :src='connections[connId].icon' /></span>
-          <span style='opacity: 0.5;' v-for='connId of folder.oldConns' :key='connId' :title='connections[connId].name + "(outdated)"'><img style='max-height: 100%' :src='connections[connId].icon' /></span>
+          <span v-for='connId of folder.conns' :key='connId' :title='getConn(connId).name'><img style='max-height: 100%' :src='getConn(connId).icon' /></span>
+          <span style='opacity: 0.5;' v-for='connId of folder.oldConns' :key='connId' :title='getConn(connId).name + "(outdated)"'><img style='max-height: 100%' :src='getConn(connId).icon' /></span>
         </div>
         <span>{{folder.size}}</span>
         <span>{{folder.lastModified}}</span>
@@ -57,8 +57,8 @@
           <button class='dot-button' slot='trigger'>
               <b-icon icon='dots-horizontal'></b-icon>
           </button>
-          <b-dropdown-item aria-role='list-item' :disabled='folder.oldConns.length === 0' @click='sync(folder)'>Sync</b-dropdown-item>
-          <b-dropdown-item aria-role='list-item' @click='manageConnections(folder)'>Manage Connections</b-dropdown-item>
+          <b-dropdown-item aria-role='list-item' :disabled='folder.oldConns.length === 0' @click='sync(folder.name)'>Sync</b-dropdown-item>
+          <b-dropdown-item aria-role='list-item' :disabled='folder.name === userdata.identityAddress' :title='folder.name === userdata.identityAddress ? "Cannot set buckets of root address" : ""' @click='manageConnections(folder)'>Manage Connections</b-dropdown-item>
           <b-dropdown-item aria-role='list-item' @click='downloadDir(dir + folder.name + "/")'>Download</b-dropdown-item>
         </b-dropdown>
       </router-link>
@@ -70,8 +70,8 @@
           <span>{{file.name}}</span>
         </div>
         <div class='conn-group'>
-          <span v-for='connId of file.conns' :key='connId' :title='connections[connId].name'><img style='max-height: 100%' :src='connections[connId].icon' /></span>
-          <span style='opacity: 0.5;' v-for='connId of file.oldConns' :key='connId' :title='connections[connId].name + "(outdated)"'><img style='max-height: 100%' :src='connections[connId].icon' /></span>
+          <span v-for='connId of file.conns' :key='connId' :title='getConn(connId).name'><img style='max-height: 100%' :src='getConn(connId).icon' /></span>
+          <span style='opacity: 0.5;' v-for='connId of file.oldConns' :key='connId' :title='getConn(connId).name + " (outdated)"'><img style='max-height: 100%' :src='getConn(connId).icon' /></span>
         </div>
         <span>{{file.size}}</span>
         <span>{{file.lastModified}}</span>
@@ -79,7 +79,7 @@
           <button class='dot-button' slot='trigger'>
               <b-icon icon='dots-horizontal'></b-icon>
           </button>
-          <b-dropdown-item aria-role='list-item' :disabled='file.oldConns.length === 0' @click='sync(file)'>Sync</b-dropdown-item>
+          <b-dropdown-item aria-role='list-item' :disabled='file.oldConns.length === 0' @click='sync(file.name)'>Sync</b-dropdown-item>
           <b-dropdown-item aria-role='list-item' :disabled='dirInfo.name === "root"' @click='manageConnections()'>Manage Connections</b-dropdown-item>
           <b-dropdown-item aria-role='list-item' @click='openFile(file.name)'>Open</b-dropdown-item>
         </b-dropdown>
@@ -127,7 +127,7 @@
     > span {
       height: 1.5em;
       &:not(:first-child) {
-        margin-left: 0.5em;
+        margin-left: 0.25em;
       }
     }
   }
@@ -170,6 +170,7 @@
       display: flex;
       align-items: center;
       border: 1px solid transparent;
+      width: calc(100vw - 2.5rem);
       > :first-child {
         display: flex;
         align-items: center;

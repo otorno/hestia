@@ -5,10 +5,11 @@ import { VVue, makeUserSession } from 'frontend/vvue';
 import { UserData } from 'blockstack/lib/auth/authApp';
 
 import ConnectionsModal from '../components/connections/connections';
-import axios from 'axios';
 import { HestiaApi } from 'common/api/api';
+import ExplorerComponent from '../components/explorer/explorer';
 
 export default (Vue as VVue).extend({
+  components: { 'hestia-explorer': ExplorerComponent },
   data() {
     return {
       // search: '',
@@ -127,8 +128,14 @@ export default (Vue as VVue).extend({
         return;
       this.$modal.open({
         props: { token: this.token },
-          component: ConnectionsModal,
-          parent: this,
+        component: ConnectionsModal,
+        parent: this,
+        events: {
+          close: () => {
+            if(this.$refs['explorer'])
+              (this.$refs['explorer'] as any).refreshAndSync();
+          }
+        }
       });
     },
     async checkBackupStatus() {
