@@ -63,6 +63,7 @@ class ConnectionService {
     if(user.defaultConnection === id)
       user.defaultConnection = broConn.id;
 
+    await db.deleteConnectionIndex(id);
     await db.updateUser(user);
   }
 

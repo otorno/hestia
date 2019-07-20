@@ -307,6 +307,10 @@ class DatabaseService {
     return this.metadata.get(path + ':' + connId).update({ size: 0, hash: '', lastModified: new Date() }).run();
   }
 
+  public async deleteConnectionIndex(connId: string) {
+    return this.metadata.getAll(connId, { index: 'connId' }).delete().run();
+  }
+
   private lastTick = Date.now();
   private trimDeletedTickWorking = false;
   public async trimDeletedTick() {
