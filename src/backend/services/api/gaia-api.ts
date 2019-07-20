@@ -27,7 +27,7 @@ export default function createGaiaRouter(logger: Logger) {
       contentType: req.headers['content-type'],
       contentLength: Number(req.headers['content-length']) || 0,
       stream: (req as any).stream || req
-    }, req.user.address).catch((e: Error) => [e]);
+    }, req.user).catch((e: Error) => [e]);
 
     if(errors.length > 0) {
       const errs = errors.map(e => {
