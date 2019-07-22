@@ -17,10 +17,11 @@ import { find, groupBy, throttleTime, mergeAll } from 'rxjs/operators';
 const METADATA_DIRNAME = '.hestia-metadata';
 
 interface UserDropboxDriverConfig extends DriverConfig {
-  client_id: string;
-  secret: string;
-  page_size: number;
-  cache_time: number;
+  page_size: number; // global
+
+  client_id: string; // the client Id for the http dropbox API
+  secret: string; // the client secret for the http dropbox API
+  cache_time?: number; // (optional) the time (in seconds) for listFiles -- default 120s (2m)
 }
 
 class ListCache {

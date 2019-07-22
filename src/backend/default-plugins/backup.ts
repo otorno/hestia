@@ -2,15 +2,15 @@ import * as path from 'path';
 import { Router } from 'express';
 import * as fs from 'fs-extra';
 import { getLogger, Logger } from '@log4js-node/log4js-api';
-import { execSync } from 'child_process';
 import { Plugin, PluginApiInterface } from '../data/plugin';
 import { NotFoundError } from '../data/hestia-errors';
 
 import * as sevBin from '7zip-bin';
-import { add } from 'node-7z';
+import { add } from 'node-7z'; // typings are way out of date
 
 interface BackupPluginConfig {
-  temp_directory?: string; // default: __dirname/backups
+  temp_directory?: string; // default: `__dirname/backups`
+                           // (i.e. `./build/backend/default-plugins/backups`)
 }
 
 class BackupPlugin implements Plugin {

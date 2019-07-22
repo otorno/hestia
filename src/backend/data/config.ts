@@ -1,15 +1,16 @@
 export interface DriverConfig {
-  path: string;
-  name?: string;
-  icon_url?: string;
-  whitelist?: string[];
-  auto_register?: boolean;
-  root_only?: boolean;
+  path: string; // the path where the driver is located
+  name?: string; // (optional) a different name to use then the standard one
+  icon_url?: string; // (optional) a url to use for the icon instead of the default provided one
+  whitelist?: string[]; // (optional) a whitelist of users who can use the driver
+  auto_register?: boolean; // (optional) whether or not users should be auto-registered for the
+                           // driver when their account is registered
+  root_only?: boolean; // (optional) whether or not the driver should only be allowed for
+                       // the root (identity) directory
 }
 
 export interface PluginConfig {
-  [key: string]: any;
-  path: string;
+  path: string; // the path where the plugin is located
 }
 
 export interface Config {

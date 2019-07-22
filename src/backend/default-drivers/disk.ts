@@ -10,10 +10,13 @@ import { User } from '../data/user';
 import { parseBytes } from '../util';
 
 interface DiskDriverConfigType extends DriverConfig {
-  storage_root_directory: string;
-  page_size: number;
-  max_user_storage: string | number;
-  max_total_storage: string | number;
+  page_size: number; // global
+
+  storage_root_directory: string; // the directory to put the files (default: `./hestia-storage`)
+
+  // for storage caps (below), use a number of bytes or a string representation (i.e. "5mb")
+  max_user_storage?: string | number; // the storage cap for each  user (default: unlimited)
+  max_total_storage?: string | number; // the overall storage cap for Hestia (default: unlimited)
 }
 
 const METADATA_DIRNAME = '.hestia-metadata';
