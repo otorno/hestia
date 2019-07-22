@@ -110,9 +110,7 @@ class Api {
     this.apiRouter.get(prefix + '/register', wrapAsync(async (req, res, next) => {
       let authorization = '';
 
-      if(req.headers.authorization)
-        authorization = req.headers.authorization;
-      else if(req.query.authorizationBearer)
+      if(req.query.authorizationBearer)
         authorization = 'bearer ' + req.query.authorizationBearer;
 
       let user: User;
