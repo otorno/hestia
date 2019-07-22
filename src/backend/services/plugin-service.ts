@@ -1,5 +1,5 @@
 import { Subject } from 'rxjs';
-import { PluginConfig } from '../data/config';
+import Config, { PluginConfig } from '../data/config';
 import { Plugin, PluginInfo, PluginApiInterface } from '../data/plugin';
 import { PluginApi } from '../data/plugin-api-interface';
 import { configIdRegex } from '../util';
@@ -50,22 +50,22 @@ class PluginService {
     this.ticking['.'] = false;
   }
 
-  public async init(config: { [id: string]: PluginConfig }) {
+  public async init(config: Config) {
     const successes: { plugin: Plugin, info: PluginInfo }[] = [];
-    const total = Object.keys(config).filter(a => typeof config[a] === 'object').length;
+    const total = Object.keys(config.plugins).filter(a => typeof config.plugins[a] === 'object').length;
     /*if(Object.keys(config).find(a => a === 'dashboard')) {
-      config['dashboard'] = {
+      config.plugins['dashboard'] = {
         path: './default-drivers/dashboard.js'
       };
     }*/
-    for(const pluginId in config) if(typeof(config[pluginId]) === 'object') {
+    for(const pluginId in config.plugins) if(typeof(config.plugins[pluginId]) === 'object') {
       try {
         if(!configIdRegex.test(pluginId))
           throw new Error('Invalid Plugin Name: doesn\'t match scheme.');
         if(/^api|^gaia|^env/.test(pluginId))
           throw new Error('Invalid Plugin Name: shadows reserved route.');
 
-        const pluginConfig = config[pluginId];
+        const pluginConfig = config.plugins[pluginId];
 
         const pluginInfo: PluginInfo = {
           id: pluginId,

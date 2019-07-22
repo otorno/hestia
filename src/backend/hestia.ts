@@ -80,8 +80,8 @@ db.init(config.db_host || '127.0.0.1', config.db_port || 28015).then(async () =>
   gaia.init(config);
   connections.init(config);
   api.preInit(config);
-  await drivers.init(config.drivers);
-  await plugins.init(config.plugins);
+  await drivers.init(config);
+  await plugins.init(config);
   api.postInit();
 
   app.use('/', api.router);
@@ -128,8 +128,10 @@ db.init(config.db_host || '127.0.0.1', config.db_port || 28015).then(async () =>
   console.error('Hestia.js caught an error!');
   console.error(err);
   shutdown((e) => {
-    console.error('**ERROR SHUTTING DOWN LOG4JS**');
-    console.error(e);
+    if(e) {
+      console.error('**ERROR SHUTTING DOWN LOG4JS**');
+      console.error(e);
+    }
     process.exit(1);
   });
 });

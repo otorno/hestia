@@ -88,13 +88,13 @@ class DriverService {
 
   public async init(config: Config) {
     const successes: DriverInfo[] = [];
-    const total = Object.keys(config.drivers).filter(a => typeof config[a] === 'object').length;
-    for(const driverId in config.drivers) if(typeof(config[driverId]) === 'object') {
+    const total = Object.keys(config.drivers).filter(a => typeof config.drivers[a] === 'object').length;
+    for(const driverId in config.drivers) if(typeof(config.drivers[driverId]) === 'object') {
       try {
         if(!configIdRegex.test(driverId))
           throw new Error('Invalid Plugin Name: doesn\'t match scheme.');
 
-        const driverConfig = config[driverId];
+        const driverConfig: DriverConfig & { page_size?: number } = config.drivers[driverId];
 
         // server-side data
         const driverInfo: DriverInfo = {
