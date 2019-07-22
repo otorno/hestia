@@ -180,13 +180,17 @@ export default (Vue as VVue).component('hestia-login', {
       }
 
       // validate token to see if we should continue
-      this.api.user.validateToken().then(
-        () => { },
+      await this.api.user.validateToken().then(
+        () => {
+          // done!
+          console.log('Successfully logged in and registered!');
+          this.finish();
+        },
         err => {
           if(err && err.response && err.response.status === 403) {
             this.$dialog.alert({
               type: 'is-warning',
-              title: 'Registered Successfully, but need a better token.',
+              title: 'Registered, but...',
               message: 'Cannot use the Hestia Dashboard unless Hestia is your selected Gaia Hub.'
               + ' Please switch to using ' + location.origin + '/gaia as your Gaia Hub and try again.',
               canCancel: false,
@@ -200,10 +204,6 @@ export default (Vue as VVue).component('hestia-login', {
         });
         console.error(err);
       });
-
-      // done!
-      console.log('Successfully logged in and registered!');
-      this.finish();
     },
     finish() {
       this.working = false;
