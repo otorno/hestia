@@ -277,7 +277,7 @@ class AuthService {
   public init(config: Config) {
     this.whitelist = config.whitelist ? config.whitelist.slice() : null;
     this.serverName = config.server_name;
-    this.validHubUrls = ['http://' + config.server_name].concat(config.valid_hub_urls || []);
+    this.validHubUrls = [config.protocol + '://' + config.server_name].concat(config.valid_hub_urls || []);
   }
 }
 
