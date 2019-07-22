@@ -188,6 +188,9 @@ export default (Vue as VVue).component('hestia-login', {
         },
         err => {
           if(err && err.response && err.response.status === 403) {
+            this.working = false;
+            this.workingOn = '';
+            this.$emit('working', false);
             this.$dialog.alert({
               type: 'is-warning',
               title: 'Registered, but...',
