@@ -325,12 +325,24 @@ export class HestiaApi implements ApiInterface {
         address: string;
         internalBucketAddress: string;
         defaultConnection: string;
-        connections: { [id: string]: {
-          driver: string;
-          name: string;
-          config: any;
-          buckets: string[];
-        } };
+        connections: {
+          [id: string]: {
+            driver: string;
+            name: string;
+            config: any;
+            buckets: string[];
+          }
+        },
+        indexes: {
+          [path: string]: {
+            [connId: string]: {
+              contentType: string;
+              size: number;
+              hash: string;
+              lastModified: Date;
+            }
+          }
+        };
       }>(this.apiUrl + '/gdpr', { headers: this.parent.headers });
     }
   }(this);

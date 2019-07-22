@@ -148,7 +148,9 @@ export default function createUserApi(logger: Logger) {
 
   router.get('/gdpr',
     validateUser(),
-    (req, res) => res.json(req.user),
+    wrapAsync(async (req, res) => {
+      res.json(Object.assign({}, req.user, { indexes: await db.getGlobalUserIndex(req.user) }));
+    }),
     handleError('user gdpr'));
 
   router.get('/list-files',
