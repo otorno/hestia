@@ -35,7 +35,12 @@ class MetaService {
     current?: { id: string, name: string, driver: string, default?: boolean, buckets: string[] }[],
     available: { id: string, name: string, longId: string, rootOnly?: boolean, multiUser?: boolean }[]
   } {
-    const available = drivers.getInfo().map(a => ({
+    const available = drivers.getInfo().filter(a =>
+      a.whitelist ?
+        user ?
+          a.whitelist.includes(user.address)
+          : false
+        : true).map(a => ({
       id: a.id,
       name: a.name,
       longId: a.longId,

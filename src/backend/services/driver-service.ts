@@ -1,4 +1,4 @@
-import { DriverConfig } from '../data/config';
+import Config, { DriverConfig } from '../data/config';
 import Driver, { DriverInfo } from '../data/driver';
 import { DriverApi } from '../data/driver-api-interface';
 import { configIdRegex } from '../util';
@@ -86,10 +86,10 @@ class DriverService {
     this.ticking['.'] = false;
   }
 
-  public async init(config: { [id: string]: DriverConfig }) {
+  public async init(config: Config) {
     const successes: DriverInfo[] = [];
-    const total = Object.keys(config).filter(a => typeof config[a] === 'object').length;
-    for(const driverId in config) if(typeof(config[driverId]) === 'object') {
+    const total = Object.keys(config.drivers).filter(a => typeof config[a] === 'object').length;
+    for(const driverId in config.drivers) if(typeof(config[driverId]) === 'object') {
       try {
         if(!configIdRegex.test(driverId))
           throw new Error('Invalid Plugin Name: doesn\'t match scheme.');
@@ -105,10 +105,12 @@ class DriverService {
         };
 
         if(driverConfig.whitelist)
-          driverInfo.whitelist = driverConfig.whitelist;
+          driverInfo.whitelist = driverConfig.whitelist.slice();
 
         if(driverConfig.root_only)
           driverInfo.rootOnly = true;
+
+        driverConfig.page_size = config.page_size;
 
         let path = driverConfig.path;
         if(path.startsWith('default-drivers'))
