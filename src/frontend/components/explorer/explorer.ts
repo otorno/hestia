@@ -750,6 +750,7 @@ export default (Vue as VVue).component('hestia-explorer', {
       }
 
       this.$modal.open({
+        hasModalCard: true,
         props: { token: this.token, bucket, rootDir: this.userdata.identityAddress === bucket },
         component: BucketConnectionsModal,
         canCancel: true,

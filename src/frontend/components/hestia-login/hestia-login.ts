@@ -161,6 +161,7 @@ export default (Vue as VVue).component('hestia-login', {
         this.working = false;
         this.workingOn = '';
         this.$modal.open({
+          hasModalCard: true,
           props: { token: this.token },
           component: ConnectionsModal,
           canCancel: false,
