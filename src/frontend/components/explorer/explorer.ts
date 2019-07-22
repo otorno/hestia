@@ -761,7 +761,7 @@ export default (Vue as VVue).component('hestia-explorer', {
       });
     },
     async refreshAndSync() {
-      if(this.working)
+      if(this.working || !this.index || !this.index['/'])
         return;
       await this.refresh();
       this.working = true;
