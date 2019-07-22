@@ -4,7 +4,24 @@
 
 ![screenshot.png](./gfx/screenshot.png)
 
-Shortcuts:
+## Feature Overview
+
+- Gaia Compatability
+  - To use as your Gaia Hub, simply use `{your hestia node url}/gaia`!
+  - Uses Gaia Authentication token format for simplicity and ease-of-use
+- Easily configurable with many whitelisting options
+- Uses a Database for storing metadata, indexing the files, and storing user preferences
+  - This improves performance when looking up your files instead of just assuming they all
+  exist.
+- Advance Drivers
+  - Multi-Instance: Run more than one driver of a particular type with different configuration options
+  - Multi-User: Run one driver that supports individual users (for remote cloud storage like Dropbox)
+  - "Root Only": Only writing the root folder (profile.json and avatar), to limit storage use and encourage
+  users to use their own remote backends
+- Plugins
+  - From making backups-on-request to providing a dashboard, it's all possible through the Plugin API Interface
+
+Doc Shortcuts:
 - [About / Goals](#about--goals)
 - [Installation / Setup](#installation--setup)
 - [Configuration](#configuration)

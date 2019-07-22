@@ -14,6 +14,8 @@ done?
 
 ### backend
 
+- put metadata in `gaia/list-files` because why not (v1.1)
+
 - DB drivers (v1.1)
   - replace the db instance so we can run off of mongo, postgre, etc.
 
