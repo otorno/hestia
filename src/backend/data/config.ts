@@ -22,6 +22,9 @@ export interface Config {
   db_host: string; // The RethinkDB host (default: `127.0.0.1`)
   db_port: number; // The RethinkDB port (default: `28015`)
 
+  pm2?: boolean; // whether or not you are using pm2 (for logging issues)
+  pm2InstanceVar?: string; // the instance ID if it is not default
+
   whitelist?: string[]; // (optional) A list of addresses which are whitelisted to use the node
 
   max_blob_size: string | number; // The maximum blob size for files (i.e. "5mb", 5242880)

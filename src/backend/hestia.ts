@@ -1,5 +1,5 @@
 import 'source-map-support/register';
-import './logger';
+import configureLogger from './logger';
 
 import * as express from 'express';
 import * as cors from 'cors';
@@ -32,6 +32,8 @@ try {
   console.error(`Couldn't read config.json! ${e}`);
   process.exit(1);
 }
+
+configureLogger(config);
 
 /*
 {"url_prefix": "https://gaia.blockstack.org/hub/", "entries":["19u3AZ6Z2FqBHqMjGHiZDZ7UBGJhoUvCoP/key.json"] }
