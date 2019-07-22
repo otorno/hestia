@@ -1,7 +1,5 @@
 ## TODO
 
-- test a lot
- - client syncing / changing buckets for folders
 - test on production env (hestia.otorno.cc)
 
 ### backend
@@ -10,11 +8,13 @@ done?
 
 ### frontend
 
-- delete files on connection remove
+done?
 
 ## Later
 
 ### backend
+
+- make DB drivers to replace the db instance so we can run off of mongo, postgre, etc.
 
 - direct links to save bandwidth?
   - yes if config'd - `dl.dropbox.com` works so that's really good
@@ -45,12 +45,13 @@ done?
 - hestia/gaia driver?
   - can I use another hestia/gaia node as a storage thing itself? probably.
 
-- overarching admin feature (plugin + frontend work)
+- overarching admin feature (`/api/v1/admin/` + frontend work)
   - manage users, whitelist, maybe other options
 
 ### frontend
 
 - move/copy/delete/upload (1.1)
   - dragging!
-- "preview pane" for small enough files (no decode)
+
+- "preview pane" for small enough files (no decoding)
   - "this file seems encrypted" warning info-bar on top of pane
