@@ -1,6 +1,5 @@
 {
   "rules": {
-    "defaultSeverity": "warning",
     "callable-types": true,
     "class-name": true,
     "comment-format": [

@@ -1,7 +1,5 @@
 import { verifyProfileToken } from 'blockstack';
-import { TokenSigner, TokenVerifier, decodeToken } from 'jsontokens';
-import { ECPair } from 'bitcoinjs-lib';
-import { randomBytes } from 'crypto';
+import { TokenVerifier, decodeToken } from 'jsontokens';
 
 export const VALID_AUTH_SCOPES = {
   store_write: true,
