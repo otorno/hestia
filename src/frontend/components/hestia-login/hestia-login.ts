@@ -5,6 +5,7 @@ import { VVue, makeUserSession } from '../../vvue';
 import { verifyToken } from 'common/util/token-util';
 import ConnectionsModal from '../connections/connections';
 import { HestiaApi } from 'common/api/api';
+import { AxiosError } from 'axios';
 
 export default (Vue as VVue).component('hestia-login', {
   props: {
@@ -131,13 +132,17 @@ export default (Vue as VVue).component('hestia-login', {
     },
     async postLogin(skipRegister = false) {
       this.working = true;
-      this.workingOn = 'Registering';
+      this.workingOn = 'Logging in';
       if(!skipRegister) {
         try {
           // await Axios.post(location.origin + '/api/v1/user/register', null, { headers: { authorization: 'bearer ' + this.token } });
-          await this.api.user.login();
+          await this.api.user.login().catch((e: AxiosError) => {
+            if(e.response && e.response.data.message && /whitelist/.test(e.response.data.message))
+              throw new Error('User is not on the whitelist!');
+            else throw e;
+          });
         } catch(e) {
-          this.handleError('registering', e);
+          this.handleError('logging in', e);
           return;
         }
       }
