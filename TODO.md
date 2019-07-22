@@ -14,44 +14,56 @@ done?
 
 ### backend
 
-- make DB drivers to replace the db instance so we can run off of mongo, postgre, etc.
+- DB drivers (v1.1)
+  - replace the db instance so we can run off of mongo, postgre, etc.
 
-- direct links to save bandwidth?
+- direct links to save bandwidth? (V1.1)
   - yes if config'd - `dl.dropbox.com` works so that's really good
 
-- index-update-plugin using driver.listfiles
-  - backup to .metadata/index.json
-  - throw errors if it detects the gaia-backed-up index is mismatched (with old pushed update)
+- hestia/gaia driver (v1.1)
+  - use another hestia/gaia node as a storage backend
+  - Blockstack PBC gaia node as auto register, ezpz
+
+- overarching admin feature (`/api/v1/admin/` + frontend work) (v1.1)
+  - manage users & user-whitelist
+
+- mail plugin
+  - haraka for SMTP inbound/outbound to other emails
+  - use plugin to communicate with hestia internal api (`/plugins/mail/internal/queue`, etc)
+    - use internal auth token system that is in haraka-plugin's config
+  - standard http api for cross-hestia "emails" (no offense smtp)
+  - store subject/plaintext content in db for indexing/searching
+  - use custom js api for everything inbox related (no offense imap)
+  - use "mail" collection (??)
+  - allow local usernames, or, redirect to username's mail-node
+    - something in the zone file...
 
 - sync plugin:
   - when conn starts working, back off
   - in drivers -- check metadata so no doubling jobs?
 
-- migrate plugin?
-  - can I keep data in the drivers (minus those that are unmigratable like local disk -- new 
-  driver option?) and just export the metadata-index, to save a *ton* of bandwidth?
+- google drive driver ([link](https://developers.google.com/drive/api/v3/about-sdk))
+- one drive driver ([link](https://docs.microsoft.com/en-us/onedrive/developer/?view=odsp-graph-online))
 
-- mail plugin
-  - haraka for SMTP inbound/outbound to other emails
-  - standard http api for cross-hestia "emails"
-  - store subject/plaintext content in db for indexing/searching
-  - use custom js api for everything inbox related (no offense imap)
-  - use "mail" collection
-
-- gaia-extra plugin (v1.1)
+- gaia-extra plugin
   - temporary files
-  - collections (/{useraddress}/{folder})
+  - collections (/{hestia-address}/{folder})
 
-- hestia/gaia driver?
-  - can I use another hestia/gaia node as a storage thing itself? probably.
-
-- overarching admin feature (`/api/v1/admin/` + frontend work)
-  - manage users, whitelist, maybe other options
+- index-update-plugin using driver.listfiles
+  - backup to .metadata/index.json
+  - throw errors if it detects the gaia-backed-up index is mismatched (with old pushed update)
 
 ### frontend
 
-- move/copy/delete/upload (1.1)
+- move/copy/delete/upload
   - dragging!
 
 - "preview pane" for small enough files (no decoding)
   - "this file seems encrypted" warning info-bar on top of pane
+
+- mobile friendly
+  - reduced ui, icon-view instead of detail view
+  - taphold/rightclick for details
+  - click to navigate (folder) or open (file)
+  - `...` for migrating/etc
+  - just working icon, no working status
