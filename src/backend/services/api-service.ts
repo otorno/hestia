@@ -1,6 +1,7 @@
 import { Router, static as serveStatic } from 'express';
 import { NotAllowedError } from '../data/hestia-errors';
 import { User } from '../data/user';
+import * as path from 'path';
 
 import { PluginInfo } from '../data/plugin';
 import { Driver, DriverInfo } from '../data/driver';
@@ -59,7 +60,7 @@ class Api {
         next();
     });
 
-    this.router.use('/', serveStatic('./build/common/static-serve'));
+    this.router.use('/', serveStatic(path.join(__dirname, '..', '..', 'common/static-serve')));
 
     this.router.get('/env',
       (_, res) => res.json({ message: meta.env() }));
