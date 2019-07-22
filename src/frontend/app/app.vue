@@ -54,6 +54,7 @@
           </b-dropdown-item>
           <b-dropdown-item @click='connections()'>Connections</b-dropdown-item>
           <b-dropdown-item :disabled='!api.plugins.backup || backupStatus === "working"' :title='api.plugins.backup ? "" : "No backup plugin found."' @click='backup()'>{{backupText}}</b-dropdown-item>
+          <b-dropdown-item @click='manageAccount()'>Manage Account</b-dropdown-item>
           <b-dropdown-item @click='logout()'>Logout</b-dropdown-item>
         </b-dropdown>
 
@@ -65,6 +66,11 @@
         <a class='navbar-item flex-item is-hidden-desktop' :disabled='!api.plugins.backup || backupStatus === "working"' :title='api.plugins.backup ? "" : "No backup plugin found."' @click='backup()'>
           <b-icon icon='folder-download'></b-icon>
           <span style='font-weight:600'>&nbsp;{{backupText}}</span>
+        </a>
+
+        <a class='navbar-item flex-item is-hidden-desktop' @click='manageAccount()'>
+          <b-icon icon='settings'></b-icon>
+          <span style='font-weight:600'>&nbsp;Manage Account</span>
         </a>
 
         <a class='navbar-item flex-item is-hidden-desktop' @click='logout()'>

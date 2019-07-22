@@ -7,6 +7,7 @@ import { UserData } from 'blockstack/lib/auth/authApp';
 import ConnectionsModal from '../components/connections/connections';
 import { HestiaApi } from 'common/api/api';
 import ExplorerComponent from '../components/explorer/explorer';
+import ManageAccountComponent from '../components/manage-account/manage-account';
 
 export default (Vue as VVue).extend({
   components: { 'hestia-explorer': ExplorerComponent },
@@ -127,6 +128,7 @@ export default (Vue as VVue).extend({
       if(!this.token)
         return;
       this.$modal.open({
+        hasModalCard: true,
         props: { token: this.token },
         component: ConnectionsModal,
         parent: this,
@@ -169,6 +171,16 @@ export default (Vue as VVue).extend({
       this.showMenu = false;
       await this.$store.dispatch('logout');
       this.$router.push({ path: '', query: { } });
+    },
+    async manageAccount() {
+      if(!this.token)
+        return;
+      this.$modal.open({
+        hasModalCard: true,
+        props: { token: this.token },
+        component: ManageAccountComponent,
+        parent: this
+      });
     }
   }
 });
