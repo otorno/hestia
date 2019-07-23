@@ -112,12 +112,15 @@ export class HestiaApi implements ApiInterface {
 
     constructor(private parent: ApiInterface) { }
 
-    async read(address: string, path: string) {
-      return this.readRaw(address + '/' + path);
+    async read(address: string, path: string, responseType?: 'blob' | 'text' | 'json') {
+      return this.readRaw(address + '/' + path, responseType);
     }
 
-    async readRaw(path: string) {
-      return axios.get(this.parent.hestiaUrl + '/gaia/read/' + path);
+    async readRaw(path: string, responseType?: 'blob' | 'text' | 'json') {
+      if(responseType)
+        return axios.get(this.parent.hestiaUrl + '/gaia/read/' + path, { responseType: responseType });
+      else
+        return axios.get(this.parent.hestiaUrl + '/gaia/read/' + path);
     }
 
     async store(address: string, path: string, data: { contentType?: string, contentLength?: number, data: any }) {

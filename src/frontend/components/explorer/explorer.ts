@@ -538,10 +538,8 @@ export default (Vue as VVue).component('hestia-explorer', {
         w.location.href = this.api.hestiaUrl + '/gaia/read/' + path;
         // otherwise, res.headers['content-type'] + ',' + JSON.stringify(data)
       } else {
-        const res = await this.api.gaia.readRaw(path);
-        const data = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
-
-        return new Blob([data], { type: res.headers['content-type'] });
+        const res = await this.api.gaia.readRaw(path, 'blob');
+        return res.data as Blob;
       }
     },
     async downloadSelected() {
@@ -787,7 +785,7 @@ export default (Vue as VVue).component('hestia-explorer', {
       if(!item.oldConns.length)
         return false;
       for(const oldConn of item.oldConns) {
-        const res = await this.api.gaia.readRaw(path);
+        const res = await this.api.gaia.readRaw(path, 'blob');
         await this.api.connections.storeRaw(oldConn, path, {
           contentType: res.headers['content-type'],
           contentLength: res.headers['content-length'],
