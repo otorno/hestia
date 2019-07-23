@@ -71,15 +71,17 @@ export function handleValidationError(err: any, req: Request, res: Response, nex
 
 export function handleError(action: string) {
   return function(err: any, req: Request, res: Response, next: NextFunction) {
-    if(!err)
+    if(!err) {
       next();
+      return;
+    }
 
     logger.debug('Handle Error: ' + err);
 
     if(err instanceof NotFoundError) {
       res.sendStatus(404);
     } else if(err instanceof NotAllowedError) {
-      res.sendStatus(403).json({ message: err.message });
+      res.status(403).json({ message: err.message });
     } else if(err instanceof MalformedError) {
       res.status(400).json({ message: err.message });
     } else if(err.type) {
