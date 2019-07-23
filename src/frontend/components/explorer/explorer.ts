@@ -1,6 +1,6 @@
 import Vue from 'vue';
 import { VVue, makeUserSession } from 'frontend/vvue';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import _ from 'lodash';
 import { UserData } from 'blockstack/lib/auth/authApp';
 import { mapGetters } from 'vuex';
@@ -184,9 +184,10 @@ export default (Vue as VVue).component('hestia-explorer', {
     window.removeEventListener('mousemove', this.drawContinue);
   },
   methods: {
-    handleError(err: Error, action: string) {
-      console.error(err);
-      this.$dialog.alert({ title: 'error', type: 'is-danger', message: `Error ${action}: ${err.message}`, });
+    handleError(e: AxiosError, action: string) {
+      const message = (e.response && e.response.data  && e.response.data.message) || e.message || 'error';
+      console.error(e);
+      this.$dialog.alert({ title: 'error', type: 'is-danger', message: `Error ${action}: ${message}`, });
     },
     formatDate(time: number) {
       return DateTime.fromMillis(time, { zone: 'utc' }).toLocal().toLocaleString(DateTime.DATETIME_SHORT);
@@ -350,8 +351,8 @@ export default (Vue as VVue).component('hestia-explorer', {
               file.rawLastModified = rawLastModified;
               file.lastModified = this.formatDate(rawLastModified);
             }
-            // different hash and newer
-          } else if(oldestLatestModifiedDates[path].latest < rawLastModified) {
+            // different hash and newer AND has a size
+          } else if(oldestLatestModifiedDates[path].latest < rawLastModified && entry.size > 0) {
             file.hash = entry.hash;
             file.rawSize = entry.size;
             file.size = filesize(entry.size);
@@ -364,7 +365,7 @@ export default (Vue as VVue).component('hestia-explorer', {
             file.fileIcon = icon.fileIcon;
             file.fileIconColor = icon.fileIconColor;
             oldestLatestModifiedDates[path] = { oldest: rawLastModified, latest: rawLastModified };
-            // it's just old
+            // it's just old (or non existant)
           } else {
             if(file.conns.find(a => a === connId))
               file.conns = file.conns.filter(a => a !== connId);

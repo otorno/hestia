@@ -18,10 +18,11 @@ export default (Vue as VVue).component('hestia-manage-account', {
 
   },
   methods: {
-    handleError(e: Error, action: string) {
+    handleError(e: any, action: string) {
+      const message = (e.response && e.response.data  && e.response.data.message) || e.message || 'error';
       this.$dialog.alert({
         type: 'is-danger',
-        message: `Could not ${action}: ${e.message}.`
+        message: `Could not ${action}: ${message}.`
       });
       console.error(e);
     },

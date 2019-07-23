@@ -2,6 +2,7 @@ import Vue from 'vue';
 import { VVue } from 'frontend/vvue';
 import * as filesize from 'filesize';
 import { HestiaApi } from 'common/api/api';
+import { AxiosError } from 'axios';
 
 export default (Vue as VVue).component('hestia-connections', {
   props: { token: { type: String } },
@@ -44,10 +45,11 @@ export default (Vue as VVue).component('hestia-connections', {
     getDriverDisabled(driver: { multiUser: boolean, id: string }) {
       return !driver.multiUser && this.connections.find(a => a.driver === driver.id);
     },
-    handleError(e: Error, action: string) {
+    handleError(e: AxiosError, action: string) {
+      const message = (e.response && e.response.data  && e.response.data.message) || e.message || 'error';
       this.$dialog.alert({
         type: 'is-danger',
-        message: `Could not ${action}: ${e.message}.`
+        message: `Could not ${action}: ${message}.`
       });
       console.error(e);
     },

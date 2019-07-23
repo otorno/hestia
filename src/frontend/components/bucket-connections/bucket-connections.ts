@@ -1,6 +1,7 @@
 import Vue from 'vue';
 import { VVue } from 'frontend/vvue';
 import { HestiaApi } from 'common/api/api';
+import { AxiosError } from 'axios';
 
 export default (Vue as VVue).component('hestia-bucket-connections', {
   props: { token: { type: String }, bucket: { type: String }, rootDir: { type: Boolean, default: false } },
@@ -31,10 +32,11 @@ export default (Vue as VVue).component('hestia-bucket-connections', {
     await this.refresh();
   },
   methods: {
-    handleError(e: Error, action: string) {
+    handleError(e: AxiosError, action: string) {
+      const message = (e.response && e.response.data  && e.response.data.message) || e.message || 'error';
       this.$dialog.alert({
         type: 'is-danger',
-        message: `Could not ${action}: ${e.message}.`
+        message: `Could not ${action}: ${message}.`
       });
       console.error(e);
     },

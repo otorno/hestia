@@ -120,14 +120,15 @@ export default (Vue as VVue).component('hestia-login', {
       if(!verifyToken(token)) return false;
       return true;
     },
-    handleError(action: string, error: Error) {
+    handleError(action: string, e: any) {
       this.working = false;
       this.workingOn = '';
+      const message = (e.response && e.response.data  && e.response.data.message) || e.message || 'error';
       this.$dialog.alert({
         type: 'is-danger',
-        message: `Error ${action}: ${error.message}`
+        message: `Error ${action}: ${message}`
       });
-      console.error(`Error ${action}:`, error);
+      console.error(`Error ${action}:`, e);
       this.logout();
     },
     async postLogin(skipRegister = false) {

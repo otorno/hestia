@@ -8,6 +8,7 @@ import ConnectionsModal from '../components/connections/connections';
 import { HestiaApi } from 'common/api/api';
 import ExplorerComponent from '../components/explorer/explorer';
 import ManageAccountComponent from '../components/manage-account/manage-account';
+import { AxiosError } from 'axios';
 
 export default (Vue as VVue).extend({
   components: { 'hestia-explorer': ExplorerComponent },
@@ -81,7 +82,7 @@ export default (Vue as VVue).extend({
         }));
         await this.logout();
       } else {
-        this.handleError(err);
+        this.handleError(err, 'verifying token');
         return;
       }
     }
@@ -104,12 +105,13 @@ export default (Vue as VVue).extend({
     }*/
   },
   methods: {
-    handleError(err: Error) {
+    handleError(e: AxiosError, action: string) {
+      const message = (e.response && e.response.data  && e.response.data.message) || e.message || 'error';
       this.$dialog.alert({
         type: 'is-danger',
-        message: 'Error verifying token: ' + err.message
+        message: `Error ${action}: ` + message
       });
-      console.error(err);
+      console.error(e);
     },
     getProfileName(user: UserData, noFallback?: boolean) {
       if(!user) return `{null}`;
@@ -160,7 +162,7 @@ export default (Vue as VVue).extend({
           await this.api.plugins.backup.requestBackup();
           this.backupStatus = 'working';
         } catch(e) {
-          this.handleError(e);
+          this.handleError(e, 'requesting backup');
           this.backupDebounce = false;
           return;
         }

@@ -49,7 +49,7 @@
         </div>
         <div class='conn-group'>
           <span v-for='connId of folder.conns' :key='connId' :title='getConn(connId).name'><img style='max-height: 100%' :src='getConn(connId).icon' /></span>
-          <span style='opacity: 0.5;' v-for='connId of folder.oldConns' :key='connId' :title='getConn(connId).name + "(outdated)"'><img style='max-height: 100%' :src='getConn(connId).icon' /></span>
+          <span style='opacity: 0.5;' v-for='connId of folder.oldConns' :key='connId' :title='getConn(connId).name + " (outdated)"'><img style='max-height: 100%' :src='getConn(connId).icon' /></span>
         </div>
         <span>{{folder.size}}</span>
         <span>{{folder.lastModified}}</span>

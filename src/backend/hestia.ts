@@ -87,8 +87,7 @@ db.init(config.db_host || '127.0.0.1', config.db_port || 28015).then(async () =>
   app.use('/', api.router);
 
   app.use((err, req, res, next) => {
-    httpLogger.error('Express caught an error!');
-    httpLogger.error(err);
+    httpLogger.error('Express caught an error!', err);
     res.status(500).json({ message: 'Something broke!' });
   });
 
