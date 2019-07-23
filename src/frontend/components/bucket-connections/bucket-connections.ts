@@ -72,7 +72,7 @@ export default (Vue as VVue).component('hestia-bucket-connections', {
 
               let page = 0;
               do {
-                const sublist = (await this.api.connections.listFiles(conn.id, this.bucket)).data;
+                const sublist = (await this.api.connections.listFiles(conn.id, this.bucket, page)).data;
                 page = sublist.page;
                 list.push(...sublist.entries);
               } while(page);
