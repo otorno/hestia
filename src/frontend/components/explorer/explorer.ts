@@ -196,9 +196,9 @@ export default (Vue as VVue).component('hestia-explorer', {
       return this.connections[connId] || { icon: '', name: '{null}' };
     },
     getFileIcon(contentType: string): { fileIcon: string, fileIconColor: string } {
-      if(contentType === 'application/json')
+      if(contentType.startsWith('application/json'))
         return { fileIcon: 'file-xml', fileIconColor: '#f44336' };
-      if(contentType === 'application/octet-stream')
+      if(contentType.startsWith('application/octet-stream'))
         return { fileIcon: 'file-question', fileIconColor: '#BDBDBD' };
       if(contentType.startsWith('text'))
         return { fileIcon: 'file-document', fileIconColor: '#3F51B5' };
@@ -539,7 +539,7 @@ export default (Vue as VVue).component('hestia-explorer', {
         // otherwise, res.headers['content-type'] + ',' + JSON.stringify(data)
       } else {
         const res = await this.api.gaia.readRaw(path);
-        const data = JSON.stringify(res.data);
+        const data = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
 
         return new Blob([data], { type: res.headers['content-type'] });
       }
