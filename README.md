@@ -4,6 +4,8 @@
 
 ![screenshot.png](./gfx/screenshot.png)
 
+[![ko-fi](https://www.ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/michaelfedora)
+
 ## Feature Overview
 
 - Gaia Compatability
