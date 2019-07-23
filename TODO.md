@@ -1,7 +1,5 @@
 ## TODO
 
-- test on production env (hestia.otorno.cc)
-
 ### backend
 
 done?
@@ -15,6 +13,8 @@ done?
 ### backend
 
 - put metadata in `gaia/list-files` because why not (v1.1)
+
+- switch 7z to [yazl](https://github.com/thejoshwolfe/yazl) (v1.1)
 
 - DB drivers (v1.1)
   - replace the db instance so we can run off of mongo, postgre, etc.
@@ -69,3 +69,8 @@ done?
   - click to navigate (folder) or open (file)
   - `...` for migrating/etc
   - just working icon, no working status
+
+### other
+
+- create an app that works using this
+  - (using association token/etc)
