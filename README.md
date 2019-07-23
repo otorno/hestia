@@ -1,6 +1,6 @@
 # Hestia
 
-*Psuedo-Decentralized Storage Middelware, or in other words, a Multi-Backend Gaia Hub*
+*Psuedo-Decentralized Storage Middleware, or in other words, a Multi-Backend Gaia Hub*
 
 ![screenshot.png](./gfx/screenshot.png)
 
