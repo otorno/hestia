@@ -532,16 +532,16 @@ export default (Vue as VVue).component('hestia-explorer', {
     async openFile(file: string, options?: { open?: boolean, rawPath?: boolean }) {
       options = Object.assign({ open: true, rawPath: false }, options);
       const path = options.rawPath ? file : (this.dir.length > 1 ? this.dir.slice(1) : '') + file;
-      let w: Window;
-      if(options.open)
-        w = window.open();
-      const res = await this.api.gaia.readRaw(path);
-      const data = typeof res.data === 'string' ? ',' + res.data : 'application/json,' + JSON.stringify(res.data);
+      if(options.open) {
+        const w = window.open();
+        w.location.href = this.api.hestiaUrl + '/gaia/read/' + path;
+        // otherwise, res.headers['content-type'] + ',' + JSON.stringify(data)
+      } else {
+        const res = await this.api.gaia.readRaw(path);
+        const data = JSON.stringify(res.data);
 
-      if(options.open)
-        w.location.href = 'data:' + data;
-      else
-        return new Blob([data.slice(data.indexOf(',') + 1)], { type: data.slice(0, data.indexOf(',')) });
+        return new Blob([data], { type: res.headers['content-type'] });
+      }
     },
     async downloadSelected() {
       if(this.working)
