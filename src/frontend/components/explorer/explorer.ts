@@ -485,7 +485,7 @@ export default (Vue as VVue).component('hestia-explorer', {
       return Promise.all([this.getApps(), this.getConnections()])
         .then(([a, b]) => this.listFiles(b))
         .catch(err => this.handleError(err, 'listing files'))
-        .then(() => { this.working = false; this.workingOn = ''; });
+        .then(() => { this.working = false; this.workingOn = ''; this.progress = 0; });
     },
     goto(dir: number) {
       if(dir <= 0) {
@@ -768,11 +768,15 @@ export default (Vue as VVue).component('hestia-explorer', {
       this.working = true;
       this.workingOn = 'Syncing...';
       let worked = false;
-      for(const folder of this.index['/'].folders) {
-        worked = await this.syncFolder(folder, '/') || worked;
+      try {
+        for(const folder of this.index['/'].folders) {
+          worked = await this.syncFolder(folder, '/') || worked;
+        }
+        if(worked)
+          await this.listFiles();
+      } catch(e) {
+        this.handleError(e, 'refresh & syncing');
       }
-      if(worked)
-        await this.listFiles();
       this.working = false;
       this.workingOn = '';
       this.progress = 0;
@@ -825,15 +829,19 @@ export default (Vue as VVue).component('hestia-explorer', {
 
         let progressIt = 0;
         let worked = false;
-        for(const file of index.files) {
-          worked = await this.syncFile(file, '/') || worked;
-          this.progress = (++progressIt) / index.files.length;
-        }
-        for(const folder of index.folders)
-          worked = await this.syncFolder(folder, '/') || worked;
+        try {
+          for(const file of index.files) {
+            worked = await this.syncFile(file, '/') || worked;
+            this.progress = (++progressIt) / index.files.length;
+          }
+          for(const folder of index.folders)
+            worked = await this.syncFolder(folder, '/') || worked;
 
-        if(worked)
-          await this.listFiles();
+          if(worked)
+            await this.listFiles();
+        } catch(e) {
+          this.handleError(e, 'syncing directory');
+        }
         this.working = false;
         this.workingOn = '';
         this.progress = 0;
@@ -848,20 +856,24 @@ export default (Vue as VVue).component('hestia-explorer', {
       this.working = true;
       this.workingOn = 'Syncing ' + itemName + '...';
       dir = dir || this.dir;
-      if(refresh)
-        await this.listFiles();
-      if(this.index[dir]) {
-        let worked = false;
-        let item = this.index[dir].files.find(a => a .name === itemName);
-        if(item)
-          worked = await this.syncFile(item, dir);
-        else {
-          item = this.index[dir].folders.find(a => a.name === itemName);
-          if(item)
-            worked = await this.syncFolder(item, dir);
-        }
-        if(worked)
+      try {
+        if(refresh)
           await this.listFiles();
+        if(this.index[dir]) {
+          let worked = false;
+          let item = this.index[dir].files.find(a => a .name === itemName);
+          if(item)
+            worked = await this.syncFile(item, dir);
+          else {
+            item = this.index[dir].folders.find(a => a.name === itemName);
+            if(item)
+              worked = await this.syncFolder(item, dir);
+          }
+          if(worked)
+            await this.listFiles();
+        }
+      } catch(e) {
+        this.handleError(e, 'syncing');
       }
       this.working = false;
       this.workingOn = '';
