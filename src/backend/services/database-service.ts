@@ -275,7 +275,8 @@ class DatabaseService {
       return { connIds: [connId], ...metadataTrim(info) };
 
     } else {
-      const info = await this.metadata.getAll(path, { index: 'path' }).run();
+      // ignore 0-length entries when fetching file info
+      const info = await this.metadata.getAll(path, { index: 'path' }).filter(doc => doc('size').gt(0)).run();
 
       if(info.length < 1) {
         throw new NotFoundError('File with path ' + path + ' does not exist in the index!');
