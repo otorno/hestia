@@ -774,6 +774,7 @@ export default (Vue as VVue).component('hestia-explorer', {
         await this.listFiles();
       this.working = false;
       this.workingOn = '';
+      this.progress = 0;
     },
     async syncFile(item: EntryInfo, dir: string) {
       this.workingOn = 'Syncing file ' + dir + item.name + '';
@@ -812,13 +813,15 @@ export default (Vue as VVue).component('hestia-explorer', {
         return;
 
       if(this.dir === '/') {
-        this.working = true;
-        this.workingOn = 'Syncing directory...';
         if(!this.rootInfo.oldConns.length)
             return;
         const index = this.index['/'];
         if(!index)
           return;
+
+        this.working = true;
+        this.workingOn = 'Syncing directory...';
+
         let progressIt = 0;
         let worked = false;
         for(const file of index.files) {
