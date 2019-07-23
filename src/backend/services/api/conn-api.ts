@@ -69,7 +69,7 @@ export default function createConnectionApi(logger: Logger) {
 
   // LIST FILES
   router.post(new RegExp('/list-files/' + PATH_REGEX + '?'), json(), validateUser(), wrapAsync(async (req, res) => {
-    const path = req.params[1] || '';
+    const path = req.params[0] || '';
 
     const page = req.body.page ? Number.parseInt(req.body.page) : undefined;
     if(page && Number.isNaN(page))
