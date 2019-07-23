@@ -16,9 +16,9 @@
   </section>
 
   <footer class='modal-card-foot'>
-    <button class='button' @click='close(true)'>Cancel</button>
-    <button class='button is-danger' :disabled='!changed' @click='reset()'>Reset</button>
-    <button class='button is-primary' :class='{ loading: closing }' :disabled='working' @click='close()'>{{ changed ? 'Save' : 'Done' }}</button>
+    <button class='button' :disabled='closing' @click='close(true)'>Cancel</button>
+    <button class='button is-danger' :disabled='!changed || working' @click='reset()'>Reset</button>
+    <button class='button is-primary' :class='{ "is-loading": closing }' :disabled='working' @click='close()'>{{ changed ? 'Save' : 'Done' }}</button>
   </footer>
 </div>
 </template>

@@ -49,7 +49,7 @@ export default (Vue as VVue).component('hestia-bucket-connections', {
         this.$emit('close');
         return;
       }
-      this.closing = true;
+      this.closing = this.working = true;
 
       if(this.changed) {
         for(let i = 0, active = this.active[i], conn = this.connections[i];
