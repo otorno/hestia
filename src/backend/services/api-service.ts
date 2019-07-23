@@ -127,7 +127,7 @@ class Api {
       if(user && user.connections && Object.values(user.connections).find(a => a && a.driver === driverInfo.id) && !driverInfo.multiUser)
         throw new NotAllowedError('You can only register with this driver once.');
 
-      if(driverInfo.whitelist && !driverInfo.whitelist.includes(req.user.address))
+      if(user && driverInfo.whitelist && !driverInfo.whitelist.includes(user.address))
         throw new NotAllowedError('You cannot register to a driver which you are not whitelisted for!');
 
       const ret = await driver.register(
