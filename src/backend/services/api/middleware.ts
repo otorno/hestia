@@ -115,6 +115,10 @@ export function validateBucket(options: {
       return;
     }
 
+    const path = String(req.params.path);
+    if(path !== 'profile.json' && options.autoRegister)
+      options.autoRegister = false;
+
     let user: User;
     try {
       user = await auth.validateBucket(address, req.headers, () => options.getAuthTimestamp(address), options.autoRegister);
@@ -127,8 +131,8 @@ export function validateBucket(options: {
   });
 }
 
-export function validateUser(options?: { autoRegister?: boolean, ignoreGaiaMismatch?: boolean, ignoreFailure?: boolean }) {
-  options = Object.assign({ autoRegister: false, ignoreGaiaMismatch: false, ignoreFailure: false }, options);
+export function validateUser(options?: { ignoreGaiaMismatch?: boolean, ignoreFailure?: boolean }) {
+  options = Object.assign({ ignoreGaiaMismatch: false, ignoreFailure: false }, options);
   return wrapAsync(async function(req: Request, res: Response, next: NextFunction) {
     try {
       const headers = req.headers.authorization ? req.headers : { authorization: 'Bearer ' + req.query.authorizationBearer };
