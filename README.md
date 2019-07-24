@@ -1,6 +1,6 @@
 # Hestia
 
-*Psuedo-Decentralized Storage Middleware, or in other words, a Multi-Backend Gaia Hub*
+*Pseudo-Decentralized Storage Middleware, or in other words, a Multi-Backend Gaia Hub*
 
 ![screenshot.png](./gfx/screenshot.png)
 
@@ -40,7 +40,7 @@ Doc Shortcuts:
 > I am simply trying to finish what Blockstack started in regards to Gaia – or rather,
 > to try and fulfill the original goal in a different way. I wanted Users to be able to
 > use their own Dropbox without having to spin up their own node and all of the complexity
-> that doing so brings – so why not have a psuedo-centralized service handle it all for
+> that doing so brings – so why not have a pseudo-centralized service handle it all for
 > them? And beyond that, why not have the ability to hook up multiple backends (as
 > advertised in the whitepaper) that can replicate or be given to a particular app at
 > the user’s choosing?
