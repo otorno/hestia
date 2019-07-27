@@ -47,49 +47,32 @@ export default (Vue as VVue).component('hestia-bucket-connections', {
     async close(skip?: boolean) {
       if(this.closing)
         return;
+
       if(skip) {
         this.$emit('close');
         return;
       }
+
       this.closing = this.working = true;
 
+      const removedConns: string[] = [];
       if(this.changed) {
         for(let i = 0, active = this.active[i], conn = this.connections[i];
           i < this.connections.length; i++, active = this.active[i], conn = this.connections[i]) if(conn.currentActive !== active) {
 
           try {
-            let newBuckets: string[];
-            if(active) {
-              newBuckets = [...conn.buckets, this.bucket];
-              // sync is handled back in hestia explorer
-            } else {
-              newBuckets = conn.buckets.filter(a => a !== this.bucket);
-              // delete excess files before setting buckets
-              const list: {
-                path: string;
-                size: number;
-                hash: string;
-                lastModified: string;
-              }[] = [];
+            if(active) // sync is handled back in the explorer
+              await this.api.connections.setBuckets(conn.id, [...conn.buckets, this.bucket]);
+            else // removing is also handled back in the explorer
+              removedConns.push(conn.id);
 
-              let page = 0;
-              do {
-                const sublist = (await this.api.connections.listFiles(conn.id, this.bucket, page)).data;
-                page = sublist.page;
-                list.push(...sublist.entries);
-              } while(page);
-              for(const entry of list) {
-                await this.api.connections.deleteFileRaw(conn.id, entry.path);
-              }
-            }
-
-            await this.api.connections.setBuckets(conn.id, newBuckets);
           } catch(e) {
             console.error('Error changing buckets for conn ' + conn.name + ': ', e);
           }
         }
       }
-      this.$emit('close');
+
+      this.$emit('close', removedConns);
     },
     async refresh() {
       if(this.working)

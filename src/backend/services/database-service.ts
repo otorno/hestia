@@ -1,341 +1,100 @@
-import { r, MasterPool, RTable, RDatum } from 'rethinkdb-ts';
-import { User, SerializedUser } from '../data/user';
-import { NotFoundError } from '../data/hestia-errors';
 import { getLogger } from 'log4js';
-import {
-  SerializedMetadataIndexEntry,
-  ConnectionMetadataIndex,
-  GlobalMetadataIndex,
-  metadataTrim,
-  Metadata,
-  MetadataIndex
-} from '../data/metadata-index';
+import { User } from '../data/user';
+import { DbDriver, DbDriverSubCategory, DbDriverUsersCategory, DbDriverMetadataCategory, SubTable } from '../data/db-driver';
+import { ConnectionMetadataIndex, ExpandedMetadataIndex, Metadata, MetadataIndex } from '../data/metadata-index';
+import Config from '../data/config';
 
-class DatabaseService {
+interface DbDriverHandler {
+  driver: DbDriver;
+}
 
-  private pool: MasterPool;
+class DatabaseService implements DbDriver, DbDriverHandler {
+
   private logger = getLogger('services.db');
 
-  public get apiTableNames() { return ['users', 'metadata']; }
+  private _driver: DbDriver;
+  public get driver() { return this._driver; }
 
-  public get apiDbName() { return 'hestia_api'; }
-  public get dataDbName() { return 'hestia_data'; }
+  public async init(config: Config) {
+    let path = config.db_driver_path || 'default-db-drivers/sqlite3.js';
+    if(path.startsWith('default-db-drivers'))
+          path = '../' + path;
+    const driver: DbDriver = (await import(path)).default;
+    const initData = await driver.init(config.db_driver_config);
+    this.logger.info('Initialized DB driver "' + initData.name + '"!');
+    this._driver = driver;
 
-  public get dbNames() { return [ this.apiDbName, this.dataDbName ]; }
-
-  public get apiDb() { return r.db(this.apiDbName); }
-  public get dataDb() { return r.db(this.dataDbName); }
-
-  public get users(): RTable<SerializedUser> { return this.apiDb.table('users'); }
-  public get metadata(): RTable<SerializedMetadataIndexEntry> { return this.apiDb.table('metadata'); }
-
-  public async ensurePluginTable(pluginId: string) {
-    return this.dataDb.tableList().contains(`plugin_${pluginId}`).branch(
-      { dbs_created: 0 },
-      this.dataDb.tableCreate(`plugin_${pluginId}`, { primaryKey: 'key' })).run();
+    return initData;
   }
 
-  public async ensureDriverTable(driverId: string) {
-    return this.dataDb.tableList().contains(`driver_${driverId}`).branch(
-      { dbs_created: 0 },
-      this.dataDb.tableCreate(`driver_${driverId}`, { primaryKey: 'key' })).run();
+  public close() {
+    return this.driver.close();
   }
 
-  public getPluginTable(pluginId: string): RTable { return this.dataDb.table(`plugin_${pluginId}`); }
-  public getDriverTable(driverId: string): RTable { return this.dataDb.table(`driver_${driverId}`); }
+  drivers = new class DbDriversCategory implements DbDriverSubCategory {
+    constructor(private parent: DbDriverHandler) { }
+    public async ensureTable(id: string): Promise<void> { return this.parent.driver.drivers.ensureTable(id); }
+    public async getTable(id: string): Promise<SubTable> { return this.parent.driver.drivers.getTable(id); }
+  }(this);
 
-  public async init(host: string, port: number): Promise<void> {
-    this.pool = await r.connectPool({ host, port });
+  plugins = new class DbPluginsCategory implements DbDriverSubCategory {
+    constructor(private parent: DbDriverHandler) { }
+    public async ensureTable(id: string): Promise<void> { return this.parent.driver.plugins.ensureTable(id); }
+    public async getTable(id: string): Promise<SubTable> { return this.parent.driver.plugins.getTable(id); }
+  }(this);
 
-    await r(this.dbNames).difference(r.dbList()).run().then(async result => {
-      for(const dbName of result)
-          await r.dbCreate(dbName).run().then(a => this.logger.info(`Created db "${dbName}!`));
-    });
-
-    await r(this.apiTableNames).difference(this.apiDb.tableList()).run().then(async result => {
-      for(const tableName of result) {
-        if(tableName === 'metadata')
-          await this.apiDb.tableCreate('metadata', { primaryKey: 'key' }).run().then(a => this.logger.info(`Created api table metadata!`));
-        else
-          await this.apiDb.tableCreate(tableName).run().then(a => this.logger.info(`Created api table "${tableName}"!`));
-      }
-    });
-
-    await this.users.indexList().run().then(async result => {
-      if(!result.includes('address'))
-        await this.users.indexCreate('address').run()
-          .then(() => this.users.indexWait('address').run())
-          .then(a => this.logger.info(`Created address index in user table (api db).`));
-      if(!result.includes('buckets'))
-        await this.users.indexCreate('buckets', { multi: true }).run()
-          .then(() => this.users.indexWait('buckets').run())
-          .then(a => this.logger.info(`Created buckets index in user table (api db).`));
-      if(!result.includes('drivers'))
-        await this.users.indexCreate('drivers', { multi: true }).run()
-          .then(() => this.users.indexWait('drivers').run())
-          .then(a => this.logger.info(`Created drivers index in user table (api db).`));
-    });
-
-    await this.metadata.indexList().run().then(async result => {
-      if(!result.includes('path'))
-        await this.metadata.indexCreate('path').run()
-          .then(() => this.metadata.indexWait('path').run())
-          .then(a => this.logger.info('Created path index in metadata table (api db).'));
-      if(!result.includes('connId'))
-        await this.metadata.indexCreate('connId').run()
-          .then(() => this.metadata.indexWait('connId').run())
-          .then(a => this.logger.info('Created connId index in metadata table (api db).'));
-    });
-  }
-
-  public async registerUser(address: string, bucketAddress: string = '') {
-    const users = await this.users.getAll(address, { index: 'address' }).run();
-    if(users.length > 1)
-      throw new Error('More than one user with address ' + address + '!');
-    if(users.length < 1 || !users[0].id)
-      await this.users.insert(new User({ address, internalBucketAddress: bucketAddress }).serialize(true), { conflict: 'replace' }).run();
-
-    return this.getUser(address);
-  }
-
-  public async deleteUser(address: string) {
-    const users = await this.users.getAll(address, { index: 'address' }).run();
-    if(users.length > 1)
-      throw new Error('More than one user with address ' + address + '!');
-    if(users.length === 1)
-      return this.users.get(users[0].id).delete().run();
-    else
-      throw new NotFoundError('No user found with address ' + address + '!');
-  }
-
-  public async getUser(address: string) {
-    const users = await this.users.getAll(address, { index: 'address' }).run();
-    if(users.length > 1) throw new Error('More than one user with address ' + address + '!');
-    if(users.length <= 0) throw new NotFoundError('No users with the address ' + address + '!');
-    return User.deserialize(users[0]);
-  }
-
-  public async getUserFromBucket(address: string) {
-    const users = await this.users.getAll(address, { index: 'buckets' }).run();
-    if(users.length > 1) throw new Error('More than one user with bucket address ' + address + '!');
-    if(users.length <= 0) throw new NotFoundError('No users with the bucket address ' + address + '!');
-    return User.deserialize(users[0]);
-  }
-
-  public async getAllUsers() {
-    const users = await this.users.run();
-    return users.map(a => User.deserialize(a));
-  }
-
-  public async updateUser(user: User) {
-    return this.users.get(user.id).update(user.serialize()).run();
-  }
-
-  public async getIndexForConnection(connId: string, bucket?: string): Promise<ConnectionMetadataIndex> {
-    const entries = await this.metadata.getAll(connId, { index: 'connId' }).run();
-    const ret: ConnectionMetadataIndex = { };
-    if(bucket) {
-      for(const entry of entries) if(entry.path.startsWith(bucket))
-        ret[entry.path] = metadataTrim(entry);
-    } else {
-      for(const entry of entries)
-        ret[entry.path] = metadataTrim(entry);
+  users = new class DbUsersCategory implements DbDriverUsersCategory {
+    constructor(private parent: DbDriverHandler) { }
+    public async register(address: string, bucketAddress: string = ''): Promise<User> {
+      return this.parent.driver.users.register(address, bucketAddress);
     }
-    return ret;
-  }
-
-  /**
-   * Gets the global index, which includes metadata from every connection
-   * @param bucket The bucket to limit the results to
-   */
-  public async getGlobalIndex(bucket?: string): Promise<GlobalMetadataIndex> {
-    const info = await this.metadata.run();
-    const ret: GlobalMetadataIndex = { };
-    if(bucket) {
-      for(const i of info) if(i.path.startsWith(bucket)) {
-        if(!ret[i.path])
-          ret[i.path] = { };
-        ret[i.path][i.connId] = metadataTrim(i);
-      }
-    } else {
-      for(const i of info) {
-        if(!ret[i.path])
-          ret[i.path] = { };
-        ret[i.path][i.connId] = metadataTrim(i);
-      }
+    public async delete(address: string): Promise<void> {
+      return this.parent.driver.users.delete(address);
     }
-    return ret;
-  }
-
-  public async getGlobalUserIndex(user: User): Promise<GlobalMetadataIndex> {
-    const connIds = r.expr(Object.keys(user.connections));
-    const info = await this.metadata.filter(d => connIds.contains(d('connId'))).run();
-    const ret: GlobalMetadataIndex = { };
-    for(const i of info) {
-      if(!ret[i.path])
-        ret[i.path] = { };
-      ret[i.path][i.connId] = metadataTrim(i);
+    public async get(address: string): Promise<User> {
+      return this.parent.driver.users.get(address);
     }
-    return ret;
-  }
-
-  public async getUserIndex(user: User): Promise<MetadataIndex> {
-    const connIds = r.expr(Object.keys(user.connections));
-    const info = await this.metadata.filter(d => connIds.contains(d('connId'))).run();
-    const oldestLatestModifiedDates: { [path: string]: { oldest: Date, latest: Date } } = { };
-    const ret: MetadataIndex = { };
-    for(const i of info) {
-      // new
-      if(!ret[i.path]) {
-        ret[i.path] = { connIds: [i.connId], ...metadataTrim(i) };
-        oldestLatestModifiedDates[i.path] = { oldest: i.lastModified, latest: i.lastModified };
-        // same hash
-      } else if(ret[i.path].hash === i.hash) {
-        ret[i.path].connIds.push(i.connId);
-
-        if(oldestLatestModifiedDates[i.path].latest < i.lastModified) {
-          oldestLatestModifiedDates[i.path].latest = i.lastModified;
-
-        } else if(oldestLatestModifiedDates[i.path].oldest > i.lastModified) {
-          oldestLatestModifiedDates[i.path].oldest = i.lastModified;
-          ret[i.path].lastModified = i.lastModified;
-        }
-        // different hash and newer
-      } else if(oldestLatestModifiedDates[i.path].latest < i.lastModified) {
-        ret[i.path] = { connIds: [i.connId], ...metadataTrim(i) };
-        oldestLatestModifiedDates[i.path] = { oldest: i.lastModified, latest: i.lastModified };
-      }
+    public async getFromBucket(bucketAddress: string): Promise<User> {
+      return this.parent.driver.users.getFromBucket(bucketAddress);
     }
-    return ret;
-  }
-
-  /**
-   * Gets the index, which only includes the latest metadata
-   * @param bucket The bucket to limit the results to
-   */
-  public async getIndex(bucket?: string): Promise<MetadataIndex> {
-    const info = await this.metadata.run();
-    const oldestLatestModifiedDates: { [path: string]: { oldest: Date, latest: Date } } = { };
-    const ret: MetadataIndex = { };
-    if(bucket) {
-      for(const i of info) if(i.path.startsWith(bucket)) {
-        // new
-        if(!ret[i.path]) {
-          ret[i.path] = { connIds: [i.connId], ...metadataTrim(i) };
-          oldestLatestModifiedDates[i.path] = { oldest: i.lastModified, latest: i.lastModified };
-          // same hash
-        } else if(ret[i.path].hash === i.hash) {
-          ret[i.path].connIds.push(i.connId);
-
-          if(oldestLatestModifiedDates[i.path].latest < i.lastModified) {
-            oldestLatestModifiedDates[i.path].latest = i.lastModified;
-
-          } else if(oldestLatestModifiedDates[i.path].oldest > i.lastModified) {
-            oldestLatestModifiedDates[i.path].oldest = i.lastModified;
-            ret[i.path].lastModified = i.lastModified;
-          }
-          // different hash and newer
-        } else if(oldestLatestModifiedDates[i.path].latest < i.lastModified) {
-          ret[i.path] = { connIds: [i.connId], ...metadataTrim(i) };
-          oldestLatestModifiedDates[i.path] = { oldest: i.lastModified, latest: i.lastModified };
-        }
-      }
-    } else {
-      for(const i of info) {
-        // new
-        if(!ret[i.path]) {
-          ret[i.path] = { connIds: [i.connId], ...metadataTrim(i) };
-          oldestLatestModifiedDates[i.path] = { oldest: i.lastModified, latest: i.lastModified };
-          // same hash
-        } else if(ret[i.path].hash === i.hash) {
-          ret[i.path].connIds.push(i.connId);
-
-          if(oldestLatestModifiedDates[i.path].latest < i.lastModified) {
-            oldestLatestModifiedDates[i.path].latest = i.lastModified;
-
-          } else if(oldestLatestModifiedDates[i.path].oldest > i.lastModified) {
-            oldestLatestModifiedDates[i.path].oldest = i.lastModified;
-            ret[i.path].lastModified = i.lastModified;
-          }
-          // different hash and newer
-        } else if(oldestLatestModifiedDates[i.path].latest < i.lastModified) {
-          ret[i.path] = { connIds: [i.connId], ...metadataTrim(i) };
-          oldestLatestModifiedDates[i.path] = { oldest: i.lastModified, latest: i.lastModified };
-        }
-      }
+    public async getAll(): Promise<User[]> {
+      return this.parent.driver.users.getAll();
     }
-    return ret;
-  }
-
-  public async getFileInfo(path: string, connId?: string): Promise<Metadata & { connIds: string[] }> {
-    if(connId) {
-      const info = await this.metadata.get(path + ':' + connId).run();
-      if(!info)
-        throw new NotFoundError('File with path ' + path + ' does not exist in the index!');
-      return { connIds: [connId], ...metadataTrim(info) };
-
-    } else {
-      // ignore 0-length entries when fetching file info
-      const info = await this.metadata.getAll(path, { index: 'path' }).filter(doc => doc('size').gt(0)).run();
-
-      if(info.length < 1) {
-        throw new NotFoundError('File with path ' + path + ' does not exist in the index!');
-
-      } if(info.length === 1) {
-        return { connIds: [info[0].connId], ...metadataTrim(info[0]) };
-
-      } else {
-        let latest = info[0];
-        for(const i of info)
-          if(i.lastModified > latest.lastModified)
-            latest = i;
-        const entries = info.filter(a => a.hash === latest.hash);
-
-        let oldestTimestamp = entries[0].lastModified;
-        for(const e of entries)
-          if(e.lastModified < oldestTimestamp)
-            oldestTimestamp = e.lastModified;
-        return Object.assign(metadataTrim(latest), { connIds: entries.map(e => e.connId), lastModified: oldestTimestamp });
-      }
+    public async update(user: User): Promise<void> {
+      return this.parent.driver.users.update(user);
     }
-  }
+    public async updateConnectionBuckets(connId: string, addresses: string[]): Promise<void> {
+      return this.parent.driver.users.updateConnectionBuckets(connId, addresses);
+    }
+  }(this);
 
-  public async updateIndex(path: string, connId: string, metadata: Metadata) {
-    return this.metadata.insert({ key: path + ':' + connId, path, connId, ...metadata }, { conflict: 'replace' }).run();
-  }
-
-  public async deleteIndex(path: string, connId: string) {
-    return this.metadata.get(path + ':' + connId).update({ size: 0, hash: '', lastModified: new Date() }).run();
-  }
-
-  public async deleteConnectionIndex(connId: string) {
-    return this.metadata.getAll(connId, { index: 'connId' }).delete().run();
-  }
-
-  public async updateConnectionBuckets(connId: string, addresses: string[]) {
-    const matchers = r.expr(addresses.map(a => '^' + a));
-    this.metadata.getAll(connId, { index: 'connId' }).filter(
-      doc => matchers.contains(matcher => doc('path').match(matcher)).not())
-      .delete().run();
-  }
-
-  private lastTick = Date.now();
-  private trimDeletedTickWorking = false;
-  public async trimDeletedTick() {
-    if(this.trimDeletedTickWorking || Date.now() - this.lastTick < 120000) // two minutes
-      return;
-    this.trimDeletedTickWorking = true;
-    this.lastTick = Date.now();
-
-    const rowsToDelete: string[] = await (this.metadata.group({ index: 'path' }) as RDatum<{
-      group: string, reduction: SerializedMetadataIndexEntry[]
-    }[]>).filter(r.row('reduction').contains(d => d('size').ne(0)).not()).ungroup().map(r.row('key')).run();
-
-    if(rowsToDelete.length)
-      await this.metadata.getAll(rowsToDelete).delete().run();
-
-    this.trimDeletedTickWorking = false;
-  }
+  metadata = new class DbMetadataCategory implements DbDriverMetadataCategory {
+    constructor(private parent: DbDriverHandler) { }
+    public async getForConnection(connId: string, bucket?: string): Promise<ConnectionMetadataIndex> {
+      return this.parent.driver.metadata.getForConnection(connId, bucket);
+    }
+    public async getForUser(user: User): Promise<MetadataIndex> {
+      return this.parent.driver.metadata.getForUser(user);
+    }
+    public async getForUserExpanded(user: User): Promise<ExpandedMetadataIndex> {
+      return this.parent.driver.metadata.getForUserExpanded(user);
+    }
+    public async getForBucket(bucket: string): Promise<MetadataIndex> {
+      return this.parent.driver.metadata.getForBucket(bucket);
+    }
+    public async getForFile(path: string, connId?: string): Promise<Metadata & { connIds: string[] }> {
+      return this.parent.driver.metadata.getForFile(path, connId);
+    }
+    public async update(path: string, connId: string, metadata: Metadata): Promise<void> {
+      return this.parent.driver.metadata.update(path, connId, metadata);
+    }
+    public async delete(path: string, connId: string): Promise<void> {
+      return this.parent.driver.metadata.delete(path, connId);
+    }
+    public async deleteAllForConnection(connId: string): Promise<void> {
+      return this.parent.driver.metadata.deleteAllForConnection(connId);
+    }
+  }(this);
 }
 
 export default new DatabaseService();

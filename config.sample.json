@@ -7,7 +7,7 @@
   "page_size": 50,
   "drivers": {
     "disk": {
-      "path": "default-drivers/disk.js",
+      "path": "default-drivers/disk",
       "auto_register": true,
       "root_only": true,
       "max_total_storage": "2.5gb",
@@ -15,17 +15,17 @@
       "storage_root_directory": "./hestia-storage"
     },
     "udb": {
-      "path": "default-drivers/user-dropbox.js",
+      "path": "default-drivers/user-dropbox",
       "client_id": "{myclientid}",
       "secret": "{mysecret}"
     }
   },
   "plugins": {
     "dashboard": {
-      "path": "default-plugins/dashboard.js"
+      "path": "default-plugins/dashboard"
     },
     "backup": {
-      "path": "default-plugins/backup.js",
+      "path": "default-plugins/backup",
       "temp_directory": "./hestia-backup"
     }
   }

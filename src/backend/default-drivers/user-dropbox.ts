@@ -7,64 +7,17 @@ import * as uuid from 'uuid';
 import { getLogger, Logger } from '@log4js-node/log4js-api';
 
 import { Driver, DriverApiInterface } from '../data/driver';
-import { DriverConfig } from '../data/config';
 import { NotFoundError, NotAllowedError, MalformedError } from '../data/hestia-errors';
 import { User } from '../data/user';
 import { urljoin, streamToBuffer } from '../util';
-import { Subject, merge } from 'rxjs';
-import { find, groupBy, throttleTime, mergeAll } from 'rxjs/operators';
+import { Subject } from 'rxjs';
+import { find } from 'rxjs/operators';
 
-const METADATA_DIRNAME = '.hestia-metadata';
-
-interface UserDropboxDriverConfig extends DriverConfig {
+interface UserDropboxDriverConfig {
   page_size: number; // global
 
   client_id: string; // the client Id for the http dropbox API
   secret: string; // the client secret for the http dropbox API
-  cache_time?: number; // (optional) the time (in seconds) for listFiles -- default 120s (2m)
-}
-
-class ListCache {
-  cache: { [key: string]: { date: Date, list: { path: string, size: number }[] } } = { };
-
-  private _onCacheChange = new Subject<{ key: string, date: Date, list: { path: string, size: number }[] }>();
-  public get onCacheChange() { return this._onCacheChange.asObservable(); }
-
-  constructor(private cacheTime: number, private logger: Logger) { }
-
-  private forgeKey(prefix: string, user: User) {
-    return user.address + ':' + prefix;
-  }
-
-  private validate(cache: { date: Date, list: { path: string, size: number }[] }) {
-    return cache && cache.date.getTime() > (Date.now() - (this.cacheTime * 1000));
-  }
-
-  get(prefix: string, user: User) {
-    const key = this.forgeKey(prefix, user);
-    const cache = this.cache[key];
-    if(this.validate(cache))
-      return cache;
-    delete this.cache[key];
-    this._onCacheChange.next({ key, date: null, list: null });
-    return null;
-  }
-
-  set(prefix: string, user: User, list: { path: string, size: number }[]) {
-    const key = this.forgeKey(prefix, user);
-    this.cache[key] = { date: new Date(), list: list.slice() };
-    this._onCacheChange.next({ key, ...this.cache[key] });
-  }
-
-  clean() {
-    for(const key in this.cache) {
-      if(!this.validate(this.cache[key])) {
-        this.logger.info(`Cleaned Cache for ${key}.`);
-        delete this.cache[key];
-        this._onCacheChange.next({ key, date: null, list: null });
-      }
-    }
-  }
 }
 
 class JobQueue {
@@ -130,9 +83,9 @@ https://github.com/dropbox/dropbox-sdk-js/issues/80#issuecomment-283189888
 
         const succeededJobs = [];
         for(const entry of status.entries) {
-          if(entry['.tag'] === 'failure')
+          if(entry['.tag'] === 'failure') {
             this.logger.error('Failed to upload:', entry.failure);
-          else if(!entry.path_lower.startsWith('/' + METADATA_DIRNAME)) {
+          } else {
             succeededJobs.push(entry.path_lower.slice(1));
             this._onJobComplete.next(entry.path_lower.slice(1));
           }
@@ -173,15 +126,6 @@ https://github.com/dropbox/dropbox-sdk-js/issues/80#issuecomment-283189888
 
         let sret: DropboxTypes.files.UploadSessionStartResult;
 
-        const metadata = JSON.stringify({ 'content-type': job.contentType });
-
-        sret = await dbx.filesUploadSessionStart({ contents: metadata, close: true });
-
-        entries.push({
-          cursor: { session_id: sret.session_id, offset: metadata.length },
-          commit: { path: '/' + urljoin(METADATA_DIRNAME, job.path + '.json'), mode: 'overwrite' }
-        });
-
         sret = await dbx.filesUploadSessionStart({ contents: job.buffer, close: true });
 
         entries.push({
@@ -218,9 +162,10 @@ class UserDropboxDriver implements Driver {
   private secret: string;
   private pageSize: number;
 
-  private listCache: ListCache;
   private jobQueue: JobQueue;
   private stateCache: { [key: string]: string } = { };
+
+  private api: DriverApiInterface;
 
   private logger: Logger;
 
@@ -240,26 +185,37 @@ class UserDropboxDriver implements Driver {
     path: string;
     storageTopLevel: string;
     user: User;
-  }): Promise<{ contentType: string, stream: ReadableStream }> {
+  }): Promise<{ contentType: string, stream: ReadableStream } | { contentType: string, redirectUrl: string }> {
     this.logger.info(`Read: ` + urljoin(options.storageTopLevel, options.path));
     const p = urljoin(options.storageTopLevel, options.path);
 
     const dbx = this.dbx(options.user);
 
-    let ret, ret2;
-    try {
-      [ret, ret2] = await Promise.all([
-        dbx.filesDownload({ path: '/' + p }),
-        dbx.filesDownload({ path: '/' + urljoin(METADATA_DIRNAME, p) + '.json' })
-      ]);
-    } catch(e) {
-      this.handleDbxError(e);
-    }
-    const stream = new ReadableStream();
-    stream.push((ret as any).fileBinary as Buffer);
-    stream.push(null);
+    // get shared link from db
+    // if it doesn't exist, use filesCreateSharedLinkWithSettings
+    // - settings are requested_visibility: public, audience: public, access: viewer
+    // return { redirectUrl } instead of the stream whatnot
 
-    return { contentType: ((ret2 as any).fileBinary as Buffer).toString('utf-8'), stream };
+    const link = await this.api.db.get(options.user.connectionId + ':' + p.toLocaleLowerCase());
+    if(link)
+      return { contentType: null, redirectUrl: link };
+    else {
+      this.logger.debug('No link indexed, getting...');
+      const res = await dbx.sharingGetSharedLinks({ path: '/' + p });
+      let newLink: string;
+      if(!res.links.length) {
+        this.logger.debug('No links available, creating a new one!');
+        const res2 = await dbx.sharingCreateSharedLinkWithSettings({
+          path: '/' + p
+        });
+        newLink = res2.url;
+      } else {
+        newLink = res.links[0].url;
+      }
+      newLink = newLink.replace('?dl=0', '').replace('www.', 'dl.');
+      await this.api.db.set(options.user.connectionId + ':' + p.toLocaleLowerCase(), newLink);
+      return { contentType: null, redirectUrl: newLink };
+    }
   }
 
   public async performWrite(options: {
@@ -273,12 +229,42 @@ class UserDropboxDriver implements Driver {
     this.logger.info(`Write: ` + urljoin(options.storageTopLevel, options.path));
     const p = urljoin(options.storageTopLevel, options.path);
 
-    await this.jobQueue.add(options.user.driverConfig.token, {
-      path: p,
-      contentType: options.contentType,
-      contentLength: options.contentLength,
-      stream: options.stream
-    });
+    let filesUploadErr = false;
+
+    if(options.contentLength < 8388608) { // 8MB
+      try {
+        await this.dbx(options.user).filesUpload({
+          path: '/' + p,
+          contents: streamToBuffer(options.stream),
+          mode: { '.tag': 'overwrite' }
+        });
+      } catch(e) {
+        this.logger.error('Error uploading file: ', e);
+        filesUploadErr = true;
+      }
+    }
+
+    if(filesUploadErr || options.contentLength >= 8388608) { // 8MB
+      await this.jobQueue.add(options.user.driverConfig.token, {
+        path: p,
+        contentType: options.contentType,
+        contentLength: options.contentLength,
+        stream: options.stream
+      });
+    }
+    const link = this.api.db.get(options.user.connectionId + ':' + p.toLocaleLowerCase());
+    if(!link) {
+      const dbx = this.dbx(options.user);
+      const res = await dbx.sharingCreateSharedLinkWithSettings({
+        path: '/' + p,
+        settings: {
+          expires: 'never',
+          requested_visibility: { '.tag': 'public' }
+        }
+      });
+      const url = res.url.replace('?dl=0', '').replace('www.', 'dl.');
+      await this.api.db.set(options.user.connectionId + ':' + p, url);
+    }
   }
 
   public async performDelete(options: {
@@ -292,61 +278,62 @@ class UserDropboxDriver implements Driver {
     return this.dbx(options.user).filesDelete({ path: '/' + p }).then(() => {}, this.handleDbxError);
   }
 
-  public async listFiles(prefix: string, page: number, user: User, justEntries?: boolean) {
-    this.logger.info(`List files: ` + (prefix || '(all) ') + (page ? 'p' + page : ''));
+  public async listFiles(prefix: string, page: number, state: boolean, user: User): Promise<any> {
+    this.logger.info(`List files: ` + (prefix || '(all) ') + (page ? 'p' + page : '') + (state ? 'w/ state' : ''));
 
-    let bigList: { path: string, size: number }[] = [];
-    const cache = this.listCache.get(prefix || 'all', user);
+    const bigList: { name: string, contentLength: number, lastModifiedDate: number }[] = [];
 
-    if(!cache) {
+    const dbx = this.dbx(user);
+    const rets: DropboxTypes.files.ListFolderResult[] = [];
+    rets.push(await dbx.filesListFolder({ path: prefix ? '/' + prefix : '', recursive: true, limit: this.pageSize }));
+    while(rets[rets.length - 1].has_more)
+      rets.push(await dbx.filesListFolderContinue({ cursor: rets[rets.length - 1].cursor }));
 
-      const dbx = this.dbx(user);
-      const rets: DropboxTypes.files.ListFolderResult[] = [];
-      rets.push(await dbx.filesListFolder({ path: prefix ? '/' + prefix : '', recursive: true, limit: this.pageSize }));
-      while(rets[rets.length - 1].has_more)
-        rets.push(await dbx.filesListFolderContinue({ cursor: rets[rets.length - 1].cursor }));
+    const entryData: {
+      ['.tag']: 'folder' | 'file';
+      name: string;
+      path_lower: string;
+      path_display: string;
+      id: string;
+      size?: number;
+      server_modified?: string;
+    }[] = rets.reduce((p, c) => p.concat(c.entries), []);
+    // supposedly DropBox can't verify the integrity of the upper/lowercase-ness of things so we need to figure that out ourselves
+    // (because it's important for Gaia/Hestia at least)
 
-      const entryData: {
-        ['.tag']: 'folder' | 'file';
-        name: string;
-        path_lower: string;
-        path_display: string;
-        id: string;
-        size?: number;
-      }[] = rets.reduce((p, c) => p.concat(c.entries.filter(e => !e.path_lower.startsWith('/' + METADATA_DIRNAME))), []);
-      // supposedly DropBox can't verify the integrity of the upper/lowercase-ness of things so we need to figure that out ourselves
-      // (because it's important for Gaia/Hestia at least)
-
-      const folders = entryData.filter(a => a['.tag'] === 'folder');
-      const files = entryData.filter(a => a['.tag'] === 'file');
-      for(const file of files) {
-        const ffolders = file.path_lower.slice(1, -file.name.length).split('/');
-        for(let i = 0; i < ffolders.length; i++) {
-          if(!ffolders[i])
-            continue;
-          const ff = folders.find(a => a.name.toLocaleLowerCase() === ffolders[i]);
-          if(ff)
-            ffolders[i] = ff.name;
-          else
-            this.logger.error(`Error finding folders name: ` + ffolders[i]);
-        }
-        const fpath = ffolders.join('/') + file.name;
-        bigList.push({ path: fpath, size: file.size });
+    const folders = entryData.filter(a => a['.tag'] === 'folder');
+    const files = entryData.filter(a => a['.tag'] === 'file');
+    for(const file of files) {
+      const ffolders = file.path_lower.slice(1, -file.name.length).split('/');
+      for(let i = 0; i < ffolders.length; i++) {
+        if(!ffolders[i])
+          continue;
+        const ff = folders.find(a => a.name.toLocaleLowerCase() === ffolders[i]);
+        if(ff)
+          ffolders[i] = ff.name;
+        else
+          this.logger.error(`Error finding folders name: ` + ffolders[i]);
       }
-
-      this.listCache.set(prefix || 'all', user, bigList);
-    } else {
-      bigList = cache.list;
+      const fpath = ffolders.join('/') + file.name;
+      bigList.push({ name: fpath, contentLength: file.size, lastModifiedDate: new Date(file.server_modified).getTime() });
     }
 
     const entries = bigList.slice(this.pageSize * page, this.pageSize * (page + 1));
-    if(bigList.length > this.pageSize * (page + 1))
-      return { entries, page: page + 1 };
-    else return { entries };
+    const includePage = bigList.length > this.pageSize * (page + 1);
+    if(state) {
+      if(includePage)
+        return { entries: entries.map(a => a.name), page: page + 1 };
+      else
+        return { entries: entries.map(a => a.name) };
+    } else {
+      if(includePage)
+        return { entries, page: page + 1 };
+      else
+        return { entries };
+    }
   }
 
   async tick() {
-    this.listCache.clean();
     await this.jobQueue.tick();
   }
 
@@ -357,23 +344,10 @@ class UserDropboxDriver implements Driver {
     this.pageSize = Number(config.page_size) || 50;
 
     this.logger = getLogger('drivers.' + id);
-    this.listCache = new ListCache(Number(config.cache_time) || 120, this.logger);
     this.jobQueue = new JobQueue(this.logger);
 
+    this.api = api;
     await api.db.init();
-
-    const cache = await api.db.getAll();
-    for(const entry of cache)
-      this.listCache.cache[entry.key] = { date: entry.value.date, list: entry.value.list };
-
-    this.listCache.onCacheChange.pipe(groupBy(v => v.key), throttleTime(30000), mergeAll()).subscribe(val => {
-      if(val.date === null)
-        api.db.delete(val.key);
-      else
-        api.db.set(val.key, { date: val.date, list: val.list });
-    });
-
-    this.listCache.clean();
 
     const icon = fs.readFileSync(path.join(__dirname, 'icons', 'dropbox.png'));
 
@@ -395,7 +369,17 @@ class UserDropboxDriver implements Driver {
     };
   }
 
-  async register(user?: User, redirectUri?: string, req?: { headers: { [key: string]: string }, body: any, query: any }) {
+  async register(user: User); // ignore
+  async register(user: User, redirectUrl: string, req: { headers: { [key: string]: string }, query: any }): Promise<{
+    redirect: { url: string }
+  } | {
+    finish: { address: string, userdata: { uid: string, token: string } };
+  }>;
+  async register(user: User, redirectUrl?: string, req?: { headers: { [key: string]: string }, query: any }) {
+
+    if(!redirectUrl || !req)
+      throw new Error('Cannot be used as a hub-backend (must be user-backend)!');
+
     const dbx = new Dropbox({ clientId: this.client_id, fetch });
     dbx.setClientSecret(this.secret);
 
@@ -403,9 +387,9 @@ class UserDropboxDriver implements Driver {
 
       const state = uuid.v4();
       this.stateCache[state] = user.address;
-      const url = dbx.getAuthenticationUrl(redirectUri, state, 'code');
+      const url = dbx.getAuthenticationUrl(redirectUrl, state, 'code');
 
-      return { redirect: { uri: url } };
+      return { redirect: { url } };
     } else if(req.query.code && req.query.state) {
 
       const code = String(req.query.code);
@@ -414,8 +398,11 @@ class UserDropboxDriver implements Driver {
       const address = this.stateCache[state];
       if(!address) throw new NotAllowedError('State mismatch.');
 
-      const token = await dbx.getAccessTokenFromCode(redirectUri, code);
+      const token = await dbx.getAccessTokenFromCode(redirectUrl, code);
       const acc = await new Dropbox({ accessToken: token, fetch }).usersGetCurrentAccount();
+
+      if(!acc.email_verified)
+        throw new NotAllowedError('User\'s email is not verified!');
 
       return { finish: { address, userdata: { uid: acc.account_id, token } } };
     }
@@ -423,13 +410,33 @@ class UserDropboxDriver implements Driver {
     throw new MalformedError('Not a redirect nor a properly formatted request!');
   }
 
-  async postRegister(user: User, newEntry: { uid: string, token: string }): Promise<void> {
-    if(Object.values(user.connections).find(a => a.config.uid === newEntry.uid))
+  async postRegisterCheck(user: User, id: string, userData: { uid: string, token: string }): Promise<void> {
+    if(Object.values(user.connections).filter(a => a.config.uid === userData.uid).length > 1)
       throw new Error('Cannot register two entries with the same account!');
+
+    const dbx = this.dbx(user.makeSafeForConnection(id));
+    let cursor = '';
+    do {
+      const res = await dbx.sharingListSharedLinks({ direct_only: true }); // do this on init too :thonk:?
+      for(const link of res.links) {
+        if((link.expires && link.expires !== 'never') ||
+          (link.link_permissions.requested_visibility && link.link_permissions.requested_visibility['.tag'] !== 'public'))
+          continue;
+        this.api.db.set(id + ':' + link.path_lower.slice(1), link.url);
+      }
+      if(res.has_more)
+        cursor = res.cursor;
+      else
+        cursor = '';
+    } while(cursor);
   }
 
   async unregister(user: User) {
-    return this.dbx(user).authTokenRevoke();
+    await this.dbx(user).authTokenRevoke();
+    const idx = await this.api.db.getAll();
+    const todel = idx.map(a => a.key).filter(a => a.startsWith(user.connectionId));
+    for(const key of todel)
+      await this.api.db.delete(key);
   }
 }
 

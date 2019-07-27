@@ -6,7 +6,7 @@ import db from './database-service';
 import drivers from './driver-service';
 import { getLogger } from 'log4js';
 import Config from '../data/config';
-import { Metadata, metadataTrim } from '../data/metadata-index';
+import { Metadata } from '../data/metadata-index';
 import { ReReadable } from 'rereadable-stream';
 import { hashStream } from '../util';
 
@@ -63,27 +63,29 @@ class ConnectionService {
     if(user.defaultConnection === id)
       user.defaultConnection = broConn.id;
 
-    await db.deleteConnectionIndex(id);
-    await db.updateUser(user);
+    await db.metadata.deleteAllForConnection(id);
+    await db.users.update(user);
   }
 
   /// === PLUGIN API FUNCTIONS
 
   /// = GAIA FUNCTIONS
 
-  public async read(id: string, user: User, address: string, path: string): Promise<{ stream: Readable } & Metadata> {
+  public async read(id: string, user: User, address: string, path: string): Promise<
+    ({ stream: Readable } | { redirectUrl: string }) & Metadata> {
     if(!user.connections[id])
       throw new NotFoundError(`No connection with id "${id}" found for user "${user.address}!`);
 
-    const info = await db.getFileInfo(address + '/' + path, id);
+    const info = await db.metadata.getForFile(address + '/' + path, id);
+    delete info.connIds;
 
     const ret = await this.getDriver(id, user).performRead({ path, storageTopLevel: address, user: user.makeSafeForConnection(id) });
-    return Object.assign(ret, metadataTrim(info));
+    return Object.assign(ret, info);
   }
 
   public async store(id: string, user: User, address: string, path: string,
     data: { contentType: string, contentLength: number, stream: Readable }): Promise<void> {
-    user = user || await db.getUserFromBucket(address);
+    user = user || await db.users.getFromBucket(address);
 
     if(!user.connections[id])
       throw new NotFoundError(`No connection with id "${id}" found for user "${user.address}!`);
@@ -106,7 +108,7 @@ class ConnectionService {
       user: user.makeSafeForConnection(id)
     });
 
-    await db.updateIndex(address + '/' + path, id, {
+    await db.metadata.update(address + '/' + path, id, {
       contentType: data.contentType,
       size: data.contentLength,
       lastModified: new Date(),
@@ -115,7 +117,7 @@ class ConnectionService {
 
     if(!user.connections[id].buckets.includes(address)) {
       user.connections[id].buckets.push(address);
-      await db.updateUser(user);
+      await db.users.update(user);
     }
   }
 
@@ -124,10 +126,10 @@ class ConnectionService {
       throw new NotFoundError(`No connection with id "${id}" found for user "${user.address}!`);
 
     await this.getDriver(id, user).performDelete({ storageTopLevel: address, path, user: user.makeSafeForConnection(id) });
-    await db.deleteIndex(address + '/' + path, id);
+    await db.metadata.delete(address + '/' + path, id);
   }
 
-  public async listFiles(id: string, user: User, path?: string, page?: number): Promise<{
+  public async listFiles(id: string, user: User, bucket?: string, page?: number): Promise<{
     entries: ({ path: string } & Metadata)[],
     page?: number }> {
     if(!user.connections[id])
@@ -135,7 +137,7 @@ class ConnectionService {
     page = Number(page) || 0;
     // return this.getDriver(id, user).listFiles(path || '', page || 0, user.makeSafeForConnection(id));
 
-    const index = await db.getIndexForConnection(id, path);
+    const index = await db.metadata.getForConnection(id, bucket);
     const paths = Object.keys(index).sort();
 
     const entries = paths.map(p => ({ path: p, ...index[p] })).slice(this.pageSize * page, this.pageSize * (page + 1));
@@ -167,7 +169,7 @@ class ConnectionService {
 
     user.defaultConnection = id;
 
-    await db.updateUser(user);
+    await db.users.update(user);
   }
 
   public async setBuckets(id: string, user: User, addresses: string[]): Promise<void> {
@@ -183,8 +185,8 @@ class ConnectionService {
 
     user.connections[id].buckets = addresses;
 
-    await db.updateConnectionBuckets(id, addresses);
-    await db.updateUser(user);
+    await db.users.updateConnectionBuckets(id, addresses);
+    await db.users.update(user);
   }
 }
 

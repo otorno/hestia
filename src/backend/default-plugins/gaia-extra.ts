@@ -6,6 +6,7 @@ import { PluginApiInterface, Plugin } from '../data/plugin';
 
 import { streamToBuffer, bufferToStream } from '../util';
 import { ADDRESS_PATH_REGEX, wrapAsync, parseAddressPathRegex, ensureStream } from '../services/api/middleware';
+import axios from 'axios';
 
 interface GaiaExtraPluginConfig {
   metadata_dirname: string;
@@ -66,7 +67,9 @@ class GaiaExtraPlugin implements Plugin {
       const oldHash = String(req.query.old_hash);
 
       const read = await this.api.gaia.read(req.params.address, path.join(this.metadataDirname, req.params.path));
-      const actualOldHash = (await streamToBuffer(read.stream)).toString('utf8');
+      const actualOldHash = ('stream' in read) ?
+        (await streamToBuffer(read.stream)).toString('utf8')
+        : await axios.get(read.redirectUrl, { responseType: 'text' });
 
       if(oldHash !== actualOldHash)
         throw Object.assign(new Error('Hash mismatch -- attmpted to store over a newer version of the file.'), { type: 'not_allowed' });

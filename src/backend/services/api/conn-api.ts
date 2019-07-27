@@ -1,6 +1,6 @@
 import { Router, json } from 'express';
 import { Logger } from 'log4js';
-import { handleError, validateUser, wrapAsync, ADDRESS_PATH_REGEX, parseAddressPathRegex, ensureStream, PATH_REGEX } from './middleware';
+import { handleError, validateUser, wrapAsync, ADDRESS_PATH_REGEX, parseAddressPathRegex, ensureStream, ADDRESS_REGEX } from './middleware';
 import { MalformedError } from '../../data/hestia-errors';
 
 import meta from '../meta-service';
@@ -56,7 +56,10 @@ export default function createConnectionApi(logger: Logger) {
   parseAddressPathRegex, validateUser(),
   wrapAsync(async (req, res) => {
     const read = await connections.read(req.params.id, req.user, req.params.address, req.params.path);
-    read.stream.pipe(res.status(202).contentType(read.contentType));
+    if('stream' in read)
+      read.stream.pipe(res.status(202).contentType(read.contentType));
+    else
+      res.redirect(read.redirectUrl);
   }), handleError('gaia read'));
 
   // DELETE
@@ -68,14 +71,14 @@ export default function createConnectionApi(logger: Logger) {
   }), handleError('gaia delete'));
 
   // LIST FILES
-  router.post(new RegExp('/list-files/' + PATH_REGEX + '?'), json(), validateUser(), wrapAsync(async (req, res) => {
-    const path = req.params[0] || '';
+  router.post(new RegExp('/list-files/' + ADDRESS_REGEX + '?'), json(), validateUser(), wrapAsync(async (req, res) => {
+    const bucket = req.params[0] || '';
 
     const page = req.body.page ? Number.parseInt(req.body.page) : undefined;
     if(page && Number.isNaN(page))
       throw new MalformedError('Could not parse page number as an Integer.');
 
-    const ret = await connections.listFiles(String(req.params.id), req.user, path, page);
+    const ret = await connections.listFiles(String(req.params.id), req.user, bucket, page);
 
     if(ret.page)
       ret.page = ret.page.toFixed() as any;

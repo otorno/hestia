@@ -12,7 +12,6 @@ class MetaService {
   public init(config: Config) {
     this.serverName = config.server_name;
     this.protocol = config.protocol;
-    console.log('initing meta service', this.serverName, this.protocol);
   }
 
   public plugins(): { id: string, name: string }[] {

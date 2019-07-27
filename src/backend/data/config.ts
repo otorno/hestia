@@ -20,15 +20,17 @@ export interface Config {
   server_name: string; // The server name (e.x. `localhost:{port}` or `hestia.otorno.cc`)
   valid_hub_urls?: string[]; // (optional) Other valid hub urls for apps to make requests
 
-  db_host: string; // The RethinkDB host (default: `127.0.0.1`)
-  db_port: number; // The RethinkDB port (default: `28015`)
+  db_driver_path?: string; // (optional) the path where the db driver is located
+                          //     (default: `default-db-drivers/sqlite3`)
+  db_driver_config?: any; // (optional) the config for the db driver
 
   pm2?: boolean; // whether or not you are using pm2 (for logging issues)
   pm2InstanceVar?: string; // the instance ID if it is not default
 
   whitelist?: string[]; // (optional) A list of addresses which are whitelisted to use the node
 
-  max_blob_size: string | number; // The maximum blob size for files (i.e. "5mb", 5242880)
+  max_blob_size?: string | number; // (optional) The maximum blob size for files (i.e. "5mb", 5242880)
+                                   // default is 7.5mb
   page_size?: number; // The pagination size for list-files
 
   root_plugin?: string; // The plugin to use as the `/` plugin, i.e. for a web interface

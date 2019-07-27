@@ -2,6 +2,7 @@ import { DriverApiInterface } from './driver';
 
 import db from '../services/database-service';
 import meta from '../services/meta-service';
+import { SubTable } from './db-driver';
 
 interface InternalDriverApiInterface {
   id: string;
@@ -30,26 +31,31 @@ export class DriverApi implements InternalDriverApiInterface, DriverApiInterface
 
   db = new class DriverDbApi {
 
+    private table: SubTable;
+
     constructor(private parent: InternalDriverApiInterface) { }
 
     async init() {
-      await db.ensureDriverTable(this.parent.id);
+      if(this.table)
+        return;
+      await db.drivers.ensureTable(this.parent.id);
+      this.table = await db.drivers.getTable(this.parent.id);
     }
 
-    async getAll() {
-      return db.getDriverTable(this.parent.id).run();
+    async getAll<T = any>() {
+      return this.table.getAll<T>();
     }
 
     async get<T = any>(key: string): Promise<T> {
-      return db.getDriverTable(this.parent.id).get(key).run();
+      return this.table.get<T>(key);
     }
 
     async set(key: string, value: any) {
-      await db.getDriverTable(this.parent.id).insert({ key, value }, { conflict: 'replace' }).run();
+      await this.table.set(key, value);
     }
 
     async delete(key: string) {
-      await db.getDriverTable(this.parent.id).get(key).delete().run();
+      await this.table.delete(key);
     }
   }(this);
 }

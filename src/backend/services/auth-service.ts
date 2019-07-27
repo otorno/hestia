@@ -91,7 +91,14 @@ class AuthService {
     return signerAddress;
   }
 
-  public partialValidate(requestHeaders: { authorization?: string }, ignoreGaiaMismatch = false) {
+  public partialValidate(requestHeaders: { authorization?: string }, ignoreGaiaMismatch = false): {
+    token: string;
+    issuerAddress: string;
+    signerAddress: string;
+    issuedAt: number;
+    claimedHub?: string;
+    validHub?: boolean;
+  } {
     if(!requestHeaders.authorization || !requestHeaders.authorization.toLowerCase().startsWith('bearer')) {
       throw new AuthError('Failed to parse authentication header; must start with "Bearer".');
     }
@@ -161,7 +168,8 @@ class AuthService {
 
       if(claimedHub.endsWith('/'))
         claimedHub = claimedHub.slice(0, -1);
-      if(!ignoreGaiaMismatch && !this.validHubUrls.find(a => claimedHub.startsWith(a)))
+      const validHub = Boolean(this.validHubUrls.find(a => claimedHub.startsWith(a)));
+      if(!ignoreGaiaMismatch && !validHub)
         throw new AuthError('Claimed hub is invalid.');
 
       // AUTH SCOPES
@@ -192,7 +200,10 @@ class AuthService {
       if(this.whitelist && !this.whitelist.includes(signerAddress))
         throw new AuthError('Signer address is not in the whitelist!');
 
-      return { token, signerAddress, issuerAddress, issuedAt };
+      const ret = { token, signerAddress, issuerAddress, issuedAt };
+      if(ignoreGaiaMismatch)
+        return Object.assign(ret, { claimedHub, validHub });
+      return ret;
 
     } else {
       throw new AuthError(`No support for Authentication version ${version}!`);
@@ -209,13 +220,13 @@ class AuthService {
 
     let user: User;
     try {
-      user = await db.getUser(signerAddress);
+      user = await db.users.get(signerAddress);
     } catch(e) {
       if(e instanceof NotFoundError) {
         if(!autoRegister)
           throw new AuthError(`User with address "${signerAddress}" is not registered!`);
         else {
-          user = await db.registerUser(signerAddress);
+          user = await db.users.register(signerAddress);
           await drivers.autoRegisterUser(user);
         }
       } else {
@@ -239,7 +250,7 @@ class AuthService {
     } else if(issuedAt < authTimestamp.getTime())
       throw new AuthError('Token issued before user-defined timestamp.');
 
-    await db.updateUser(user);
+    await db.users.update(user);
 
     return user;
   }
@@ -253,13 +264,13 @@ class AuthService {
 
     let user: User;
     try {
-      user = await db.getUser(signerAddress);
+      user = await db.users.get(signerAddress);
     } catch(e) {
       if(e instanceof NotFoundError) {
         if(!options.autoRegister)
           throw new AuthError(`User with address "${signerAddress}" is not registered!`);
         else {
-          user = await db.registerUser(signerAddress);
+          user = await db.users.register(signerAddress);
           await drivers.autoRegisterUser(user);
         }
       } else {

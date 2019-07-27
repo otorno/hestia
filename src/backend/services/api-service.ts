@@ -135,21 +135,20 @@ class Api {
         // urljoin(req.originalUrl.replace(/\?.*$/, ''), prefix + '/register')
         `${meta.origin()}/api/v1${prefix}/register`, {
         headers: req.headers,
-        body: req.body,
         query: req.query
       });
 
-      if(ret.redirect) {
+      if('redirect' in ret) {
         if(ret.redirect.headers)
           for(const k in ret.redirect.headers) res.setHeader(k, ret.redirect.headers[k]);
 
-        res.redirect(ret.redirect.uri);
+        res.redirect(ret.redirect.url);
         return;
       }
 
-      if(ret.finish) {
+      if('finish' in ret) {
         if(!user)
-          user = await db.getUser(ret.finish.address);
+          user = await db.users.get(ret.finish.address);
         let id = uuid.v4();
         while(user.connections[id]) // force unique (at least within the same user)
           id = uuid.v4();
@@ -161,13 +160,13 @@ class Api {
           buckets: [user.address]
         };
         if(driver.postRegisterCheck)
-          await driver.postRegisterCheck(user.makeSafeForDriver(driverInfo.id), ret.finish.userdata || null);
+          await driver.postRegisterCheck(user.makeSafeForDriver(driverInfo.id), id, ret.finish.userdata || null);
 
         if(!user.defaultConnection || !user.connections[user.defaultConnection] ||
           (drivers.getInfo().find(a => a.id === user.connections[user.defaultConnection].driver) || { rootOnly: false }).rootOnly)
           user.defaultConnection = id;
 
-        await db.updateUser(user);
+        await db.users.update(user);
       }
 
       res.redirect('/auto-close');

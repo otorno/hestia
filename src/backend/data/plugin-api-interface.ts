@@ -7,6 +7,7 @@ import connections from '../services/connection-service';
 import gaia from '../services/gaia-service';
 import meta from '../services/meta-service';
 import { Metadata } from './metadata-index';
+import { SubTable } from './db-driver';
 import { User } from './user';
 
 interface InternalPluginApiInterface {
@@ -27,7 +28,7 @@ export class PluginApi implements PluginApiInterface, InternalPluginApiInterface
       return meta.plugins();
     },
     async drivers(userAddress?: string) {
-      const user = await db.getUser(userAddress);
+      const user = await db.users.get(userAddress);
       if(!user)
         throw new NotFoundError(`No users found with address "${userAddress}"!`);
       return meta.drivers(user);
@@ -46,14 +47,17 @@ export class PluginApi implements PluginApiInterface, InternalPluginApiInterface
     },
     async store(address: string, path: string,
       data: { contentType: string, contentLength: number, stream: Readable }, userAddress?: string): Promise<Error[]> {
-      const user = userAddress ? await db.getUser(userAddress) : null;
+      const user = userAddress ? await db.users.get(userAddress) : null;
       return gaia.store(address, path, data, user);
     },
     delete(address: string, path: string): Promise<Error[]> {
       return gaia.delete(address, path);
     },
-    listFiles(address: string, page?: number) {
-      return gaia.listFiles(address, page);
+    async listFiles<State extends boolean>(address: string, options?: { page?: number, state?: State }, userAddress?: string) {
+      let user: User;
+      if(userAddress)
+        user = await db.users.get(userAddress);
+      return gaia.listFiles<State>(address, options, user);
     }
   });
 
@@ -61,70 +65,90 @@ export class PluginApi implements PluginApiInterface, InternalPluginApiInterface
 
     constructor(private parent: InternalPluginApiInterface) { }
 
-    async getUser(address: string) {
-      return db.getUser(address);
-    }
+    users = new class {
+      constructor(private parent: InternalPluginApiInterface) { }
+      async get(address: string) {
+        return db.users.get(address);
+      }
 
-    async getUserFromBucket(address: string) {
-      return db.getUserFromBucket(address);
-    }
+      async getFromBucket(address: string) {
+        return db.users.getFromBucket(address);
+      }
 
-    async getAllUsers() {
-      return db.getAllUsers();
-    }
+      async getAll() {
+        return db.users.getAll();
+      }
+    }(this.parent);
 
     // metadata
+    metadata = new class {
+      constructor(private parent: InternalPluginApiInterface) { }
+      async getForConnection(connId: string, bucket?: string) {
+        return db.metadata.getForConnection(connId, bucket);
+      }
 
-    async getIndexForConnection(connId: string, bucket?: string) {
-      return db.getIndexForConnection(connId, bucket);
-    }
+      async getForUserExpanded(userAddress: string) {
+        return db.metadata.getForUserExpanded(await db.users.get(userAddress));
+      }
 
-    async getGlobalUserIndex(userAddress: string) {
-      return db.getGlobalUserIndex(await db.getUser(userAddress));
-    }
+      async getForUser(userAddress: string) {
+        return db.metadata.getForUser(await db.users.get(userAddress));
+      }
 
-    async getUserIndex(userAddress: string) {
-      return db.getUserIndex(await db.getUser(userAddress));
-    }
+      async getForFile(path: string, connId?: string) {
+        return db.metadata.getForFile(path, connId);
+      }
 
-    async getFileInfo(path: string, connId?: string) {
-      return db.getFileInfo(path, connId);
-    }
+      async update(path: string, connId: string, metadata: Metadata) {
+        await db.metadata.update(path, connId, metadata);
+      }
 
-    async updateIndex(path: string, connId: string, metadata: Metadata) {
-      await db.updateIndex(path, connId, metadata);
-    }
-
-    async deleteIndex(path: string, connId: string) {
-      await db.deleteIndex(path, connId);
-    }
+      async delete(path: string, connId: string) {
+        await db.metadata.delete(path, connId);
+      }
+    }(this.parent);
 
     // plugin data storage
+    plugin = new class {
+      table: SubTable;
+      constructor(private parent: InternalPluginApiInterface) { }
 
-    async init() {
-      await db.ensurePluginTable(this.parent.id);
-    }
+      async init() {
+        if(this.table)
+          return;
+        await db.plugins.ensureTable(this.parent.id);
+        this.table = await db.plugins.getTable(this.parent.id);
+      }
 
-    async getAll() {
-      return db.getPluginTable(this.parent.id).run();
-    }
+      async getAll() {
+        if(!this.table)
+          throw new Error('Plugin storage not initialized!');
+        return this.table.getAll();
+      }
 
-    async get<T = any>(key: string): Promise<T> {
-      return db.getPluginTable(this.parent.id).get(key).run();
-    }
+      async get<T = any>(key: string): Promise<T> {
+        if(!this.table)
+          throw new Error('Plugin storage not initialized!');
+        return this.table.get<T>(key);
+      }
 
-    async set(key: string, value: any) {
-      await db.getPluginTable(this.parent.id).insert({ key, value }, { conflict: 'replace' }).run();
-    }
+      async set(key: string, value: any) {
+        if(!this.table)
+          throw new Error('Plugin storage not initialized!');
+        return this.table.set(key, value);
+      }
 
-    async delete(key: string) {
-      await db.getPluginTable(this.parent.id).get(key).delete().run();
-    }
+      async delete(key: string) {
+        if(!this.table)
+          throw new Error('Plugin storage not initialized!');
+        await this.table.delete(key);
+      }
+    }(this.parent);
   }(this);
 
   connections = Object.freeze({
     async read(id: string, userAddress: string, address: string, path: string) {
-      const user = await db.getUser(userAddress);
+      const user = await db.users.get(userAddress);
       if(!user)
         throw new NotFoundError(`No users found with address "${userAddress}"!`);
 
@@ -133,42 +157,42 @@ export class PluginApi implements PluginApiInterface, InternalPluginApiInterface
     async store(id: string, userAddress: string, address: string, path: string,
       data: { contentType: string, contentLength: number, stream: Readable }): Promise<void> {
 
-      const user = await db.getUser(userAddress);
+      const user = await db.users.get(userAddress);
       if(!user)
         throw new NotFoundError(`No users found with address "${userAddress}"!`);
 
       return connections.store(id, user, address, path, data);
     },
     async delete(id: string, userAddress: string, address: string, path: string): Promise<void> {
-      const user = await db.getUser(userAddress);
+      const user = await db.users.get(userAddress);
       if(!user)
         throw new NotFoundError(`No users found with address "${userAddress}"!`);
 
       return connections.delete(id, user, address, path);
     },
     async listFiles(id: string, userAddress: string, path?: string, page?: number) {
-      const user = await db.getUser(userAddress);
+      const user = await db.users.get(userAddress);
       if(!user)
         throw new NotFoundError(`No users found with address "${userAddress}"!`);
 
       return connections.listFiles(id, user, path, page);
     },
     async getInfo(id: string, userAddress: string) {
-      const user = await db.getUser(userAddress);
+      const user = await db.users.get(userAddress);
       if(!user)
         throw new NotFoundError(`No users found with address "${userAddress}"!`);
 
       return connections.getInfo(id, user);
     },
     async setDefault(id: string, userAddress: string): Promise<void> {
-      const user = await db.getUser(userAddress);
+      const user = await db.users.get(userAddress);
       if(!user)
         throw new NotFoundError(`No users found with address "${userAddress}"!`);
 
       return connections.setDefault(id, user);
     },
     async setBuckets(id: string, userAddress: string, addresses: string[]): Promise<void> {
-      const user = await db.getUser(userAddress);
+      const user = await db.users.get(userAddress);
       if(!user)
         throw new NotFoundError(`No users found with address "${userAddress}"!`);
 

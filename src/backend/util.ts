@@ -1,6 +1,6 @@
 import { ECPair } from 'bitcoinjs-lib';
-import bytes = require('bytes');
-import { Readable, Stream } from 'stream';
+import * as bytes from 'bytes';
+import { Readable } from 'stream';
 import { createHash } from 'crypto';
 
 export const configIdRegex = /^[\w\d][\w\d\.\-]*(?:\/[\w\d][\w\d\.\-]*)*$/;

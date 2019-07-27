@@ -15,6 +15,18 @@ export interface DriverApiInterface {
   };
 }
 
+interface ListFilesResponseExtended {
+  entries: { name: string, contentLength: number, lastModifiedDate: number }[];
+  page?: number;
+}
+
+interface ListFilesResponseNormal {
+  entries: string[];
+  page?: number;
+}
+
+export type ListFilesResponse<State> = State extends true ? ListFilesResponseExtended : ListFilesResponseNormal;
+
 export interface DriverInfo {
   id: string;
   longId: string;
@@ -32,7 +44,7 @@ export interface Driver {
     path: string;
     storageTopLevel: string;
     user: User;
-  }): Promise<{ contentType: string, stream: ReadableStream }>;
+  }): Promise<{ stream: ReadableStream } | { redirectUrl: string }>;
 
   performWrite(options: {
     path: string;
@@ -49,17 +61,19 @@ export interface Driver {
     user: User;
   }): Promise<void>;
 
-  listFiles(prefix: string, page: number, user: User, justPaths: true): Promise<{
-    entries: {
-      path: string
-    }[],
+  /*listFiles(prefix: string, page: number, state: false, user: User): Promise<{
+    entries: string[],
     page?: number }>;
-  listFiles(prefix: string, page: number, user: User, justPaths?: false): Promise<{
+  listFiles(prefix: string, page: number, state: true, user: User): Promise<{
       entries: {
-        path: string,
-        size: number
+        name: string,
+        lastModifiedDate: number,
+        contentLength: number
       }[],
-      page?: number }>;
+      page?: number }>;*/
+
+  // I don't know if these typings are better or worse...
+  listFiles<State extends boolean>(prefix: string, page: number, state: State, user: User): Promise<ListFilesResponse<State>>;
 
   init(id: string, config: any, api: DriverApiInterface): Promise<{
     name: string,
@@ -77,19 +91,30 @@ export interface Driver {
 
   tick?(): Promise<void>;
 
-  register(user?: User): Promise<{
-    finish?: { address: string, userdata?: any }
+  /**
+   * (Auto-)register the driver for the user.
+   * @param user The user
+   */
+  autoRegister?(user: User): Promise<{
+    finish: { address: string, userdata?: any }
   }>;
 
-  register(user: User, redirectUri: string, req: { headers: { [key: string]: string | string[] }, body: any, query: any }): Promise<{
-    redirect?: {
-      uri: string
+  /**
+   * Start the registration workflow for the driver
+   * @param user The user
+   * @param redirectUrl The url that the driver should redirect towards to continue the workflow
+   * @param req The request object
+   */
+  register(user: User, redirectUrl: string, req: { headers: { [key: string]: string | string[] }, query: any }): Promise<{
+    redirect: {
+      url: string
       headers?: {[key: string]: any},
-    },
-    finish?: { address: string, userdata?: any }
+    }
+  } | {
+    finish: { address: string, userdata?: any }
   }>;
 
-  postRegisterCheck?(user: User, newEntry: any): Promise<void>;
+  postRegisterCheck?(user: User, connId: string, userData: any): Promise<void>;
 
   unregister(user: User): Promise<void>;
 }

@@ -45,7 +45,7 @@ class DriverService {
         continue;
 
       const driver = this.get(info.id);
-      const ret = await driver.register(user.makeSafeForDriver(info.id));
+      const ret = await driver.autoRegister(user.makeSafeForDriver(info.id));
 
       let id = uuid.v4();
       while(user.connections[id]) // force unique (at least within the same user)
@@ -58,13 +58,13 @@ class DriverService {
         buckets: [user.address]
       };
       if(driver.postRegisterCheck)
-        await driver.postRegisterCheck(user.makeSafeForDriver(info.id), ret.finish.userdata || null);
+        await driver.postRegisterCheck(user.makeSafeForDriver(info.id), id, ret.finish.userdata || null);
 
       if(!user.defaultConnection)
         user.defaultConnection = id;
     }
 
-    await db.updateUser(user);
+    await db.users.update(user);
   }
 
   private ticking: { [key: string]: boolean } = { };
@@ -129,7 +129,7 @@ class DriverService {
 
         driverInfo.icon = driverInfo.icon || initData.icon;
 
-        if(Boolean(driverConfig.auto_register) && Boolean(initData.autoRegisterable)) {
+        if(Boolean(driverConfig.auto_register) && Boolean(initData.autoRegisterable) && Boolean(driver.autoRegister)) {
           driverInfo.autoRegister = true;
           this.logger.info('Will auto-register driver "' + driverInfo.id + '"!');
         }
@@ -142,7 +142,7 @@ class DriverService {
         successes.push(Object.assign({}, driverInfo));
         this.logger.info(`Successfully initialized ${driverInfo.name}("${driverId}") driver!`);
       } catch(e) {
-        this.logger.error(`Error initializing "${driverId}" driver: ${e}`);
+        this.logger.error(`Error initializing "${driverId}" driver: `, e);
       }
     }
     this.logger.info(`Initialized ${successes.length} out of ${total} drivers.`);

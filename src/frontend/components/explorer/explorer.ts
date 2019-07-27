@@ -78,7 +78,7 @@ export default (Vue as VVue).component('hestia-explorer', {
       },
 
       nameAnnotations: { } as  { [key: string]: string },
-      connections: { } as { [id: string]: { icon: string, name: string } },
+      connections: { } as { [id: string]: { icon: string, name: string, buckets: string[] } },
       connString: '',
       apps: [] as { name: string, website: string, address: string }[],
     };
@@ -193,7 +193,7 @@ export default (Vue as VVue).component('hestia-explorer', {
       return DateTime.fromMillis(time, { zone: 'utc' }).toLocal().toLocaleString(DateTime.DATETIME_SHORT);
     },
     getConn(connId: string) {
-      return this.connections[connId] || { icon: '', name: '{null}' };
+      return this.connections[connId] || { icon: '', name: '{null}', buckets: [] };
     },
     getFileIcon(contentType: string): { fileIcon: string, fileIconColor: string } {
       if(contentType.startsWith('application/json'))
@@ -470,7 +470,8 @@ export default (Vue as VVue).component('hestia-explorer', {
       for(const conn of res.data.current) {
         this.connections[conn.id] = {
           icon: location.origin + '/api/v1/drivers/' + conn.driver + '/icon',
-          name: conn.name
+          name: conn.name,
+          buckets: conn.buckets
         };
       }
       return res.data.current;
@@ -735,7 +736,7 @@ export default (Vue as VVue).component('hestia-explorer', {
       this.progress = 0;
       return this.refresh();
     },
-    manageConnections(item?: EntryInfo) {
+    async manageConnections(item?: EntryInfo) {
       if(this.working)
         return;
 
@@ -748,16 +749,65 @@ export default (Vue as VVue).component('hestia-explorer', {
         return;
       }
 
-      this.$modal.open({
+      this.working = true;
+      this.workingOn = 'Managing connections...';
+      this.progress = 0;
+
+      const removedConns = await new Promise<string[]>(resolve => this.$modal.open({
         hasModalCard: true,
         props: { token: this.token, bucket, rootDir: this.userdata.identityAddress === bucket },
         component: BucketConnectionsModal,
         canCancel: true,
         parent: this,
         events: {
-          close: () => this.refresh().then(() => this.sync(bucket, '/', false))
+          close: (remConns: string[]) => resolve(remConns)
         }
-      });
+      }));
+      this.working = false;
+      this.workingOn = '';
+      await this.refresh().then(() => this.sync(bucket, '/', false));
+
+      this.working = true;
+      this.workingOn = 'Removing connections...';
+      let prog = 0;
+      this.progress = 0;
+
+      if(removedConns && removedConns.length) {
+        for(const connId of removedConns) {
+          const conn = this.getConn(connId);
+          this.workingOn = `Removing connection ${conn.name} from ${(this.useFamiliar ? this.nameAnnotations[bucket] : '') || bucket}...`;
+
+          try {
+            const newBuckets = conn.buckets.filter(a => a !== bucket);
+
+            // delete excess files before setting buckets
+            const list: string[] = [];
+            let page = 0;
+            do {
+              const sublist = (await this.api.connections.listFiles(connId, bucket, page)).data;
+              page = sublist.page;
+              list.push(...sublist.entries.map(a => a.path));
+            } while(page);
+
+            for(const entry of list)
+              await this.api.connections.deleteFileRaw(connId, entry);
+
+            // now set the buckets
+            await this.api.connections.setBuckets(connId, newBuckets);
+
+          } catch(e) {
+            this.handleError(e, 'removing connection ' + conn.name);
+          }
+
+          this.progress = (++prog) / removedConns.length;
+        }
+      }
+
+      this.working = false;
+      this.workingOn = '';
+      this.progress = 0;
+
+      return this.refresh();
     },
     async refreshAndSync() {
       if(this.working || !this.index || !this.index['/'])

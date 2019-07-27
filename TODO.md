@@ -12,33 +12,45 @@ done?
 
 ### backend
 
-- put metadata in `gaia/list-files` because why not (v1.1)
-
-- switch 7z to [yazl](https://github.com/thejoshwolfe/yazl) (v1.1)
-
-- DB drivers (v1.1)
-  - replace the db instance so we can run off of mongo, postgre, etc.
-
-- direct links to save bandwidth? (V1.1)
-  - yes if config'd - `dl.dropbox.com` works so that's really good
-
-- hestia/gaia driver (v1.1)
-  - use another hestia/gaia node as a storage backend
-  - Blockstack PBC gaia node as auto register, ezpz
-
-- overarching admin feature (`/api/v1/admin/` + frontend work) (v1.1)
+- overarching admin feature (`/api/v1/admin/` + frontend work)
   - manage users & user-whitelist
 
-- mail plugin
-  - haraka for SMTP inbound/outbound to other emails
-  - use plugin to communicate with hestia internal api (`/plugins/mail/internal/queue`, etc)
-    - use internal auth token system that is in haraka-plugin's config
-  - standard http api for cross-hestia "emails" (no offense smtp)
-  - store subject/plaintext content in db for indexing/searching
-  - use custom js api for everything inbox related (no offense imap)
-  - use "mail" collection (??)
-  - allow local usernames, or, redirect to username's mail-node
-    - something in the zone file...
+- disk-driver - queue file writes so we don't get too busy
+  - per file? per bucket?
+
+- gaia-driver - separate files into parts if they are too big
+  - how do we even know if they are too big? :thonk:
+
+- app-db plugin - allow using apps to use the db (with realtime changefeeds)
+  - realtime changefeeds are done by the web api, *not* by the underlying db
+  - queue work orders to not stress out the db too much(?)
+
+- plugin API - allow storing in gaia via internal bucket address
+  - perhaps use new buckets instead? `/{plugin.longId}`? `/{plugin.id}`?
+    - this is because syncing... unless it doesn't matter and they
+    can just store all internal-hestia-plugin data b/c it shouldn't
+    take up too much space (maybe mail will w/ attatchments)
+
+- push notifications service - [web-push](https://www.npmjs.com/package/web-push)
+  - POST `/api/v1/push/subscribe`
+    - with filter info in body
+      - include: string[] (buckets)
+      - exclude: string[] (buckets)
+      - subjectRegex: string
+      - bodyRegex: string
+      - idk
+    - returns subscription info
+  - POST `/api/v1/push/unsubscribe`
+    - with subscription info in body
+  - internal (plugin) api for sending messages to users/buckets/etc
+
+- inboxes plugin!
+  - use {internal address}/inboxes
+  - `/plugins/inboxes/poll?since={time}`
+  - `/plugins/inboxes/connect` - websocket notifications
+  - use bucket token to subscribe/poll for specific bucket
+  - use user token to subscribe to everything(?)
+  - use push notifications
 
 - sync plugin:
   - when conn starts working, back off
@@ -49,11 +61,15 @@ done?
 
 - gaia-extra plugin
   - temporary files
-  - collections (/{hestia-address}/{folder})
+  - collections (/{hestia-address}/{collections}/{folder})
 
 - index-update-plugin using driver.listfiles
   - backup to .metadata/index.json
   - throw errors if it detects the gaia-backed-up index is mismatched (with old pushed update)
+
+- gaia passthrough plugin?
+  - for app-devs who want hestia functionality but have to deal with normal gaia users
+  - uses gaia-driver backend w/ psuedo-user idk
 
 ### frontend
 
@@ -69,6 +85,10 @@ done?
   - click to navigate (folder) or open (file)
   - `...` for migrating/etc
   - just working icon, no working status
+
+- migrate to PWA (both mobile/desktop)
+
+- optional push notifications for inboxes and/or syncing updates?
 
 ### other
 

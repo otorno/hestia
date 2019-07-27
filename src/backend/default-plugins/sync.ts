@@ -1,6 +1,8 @@
 import { getLogger, Logger } from '@log4js-node/log4js-api';
 import { Plugin, PluginApiInterface } from '../data/plugin';
 import { Router } from 'express';
+import { Readable } from 'stream';
+import axios from 'axios';
 import { wrapAsync } from '../services/api/middleware';
 import { User } from '../data/user';
 
@@ -71,9 +73,9 @@ class SyncPlugin implements Plugin {
 
     if(connId) {
       // [path]{ metadata }
-      const index = await this.api.db.getIndexForConnection(connId);
+      const index = await this.api.db.metadata.getForConnection(connId);
       for(const path in index) if(index[path]) {
-        const bestInfo = await this.api.db.getFileInfo(path).catch(e => {
+        const bestInfo = await this.api.db.metadata.getForFile(path).catch(e => {
           if(e && e.type === 'not_found_error')
             return null;
           else throw e;
@@ -85,7 +87,8 @@ class SyncPlugin implements Plugin {
             await this.api.connections.store(connId, user.address, '', path, {
               contentType: bestInfo.contentType,
               contentLength: bestInfo.size,
-              stream: await this.api.gaia.read('', path).then(a => a.stream)
+              stream: await this.api.gaia.read('', path).then(a => ('stream' in a) ? a.stream :
+                  axios.get<Readable>(a.redirectUrl, { responseType: 'stream' }).then(b => b.data))
             });
           }
         }
@@ -93,9 +96,9 @@ class SyncPlugin implements Plugin {
 
     } else {
       // [path][cId]{ metadata }
-      const index = await this.api.db.getGlobalUserIndex(user.address);
+      const index = await this.api.db.metadata.getForUserExpanded(user.address);
       for(const path in index) if(index[path]) {
-        const bestInfo = await this.api.db.getFileInfo(path).catch(e => {
+        const bestInfo = await this.api.db.metadata.getForFile(path).catch(e => {
           if(e && e.type === 'not_found_error')
             return null;
           else throw e;
@@ -110,7 +113,8 @@ class SyncPlugin implements Plugin {
               await this.api.connections.store(cId, user.address, '', path, {
                 contentType: bestInfo.contentType,
                 contentLength: bestInfo.size,
-                stream: await this.api.gaia.read('', path).then(a => a.stream)
+                stream: await this.api.gaia.read('', path).then(a => ('stream' in a) ? a.stream :
+                  axios.get<Readable>(a.redirectUrl, { responseType: 'stream' }).then(b => b.data))
               });
             }
           }
@@ -128,7 +132,7 @@ class SyncPlugin implements Plugin {
 
     this.logger.info('Starting Sync job...');
 
-    const users = (await this.api.db.getAllUsers()).filter(a => !this.workedUsers[a.address] && !this.workingUsers[a.address]);
+    const users = (await this.api.db.users.getAll()).filter(a => !this.workedUsers[a.address] && !this.workingUsers[a.address]);
     this.workedUsers = { };
 
     for(const u of users) {

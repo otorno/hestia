@@ -91,7 +91,8 @@ export class User {
   public static deserialize(obj: SerializedUser): User {
     if(!(
       obj.connectionIds && obj.connectionIds instanceof Array &&
-      obj.connections && obj.connections instanceof Array))
+      obj.connections && obj.connections instanceof Array &&
+      obj.buckets && obj.buckets instanceof Array))
       throw new Error('Cannot deserialize user: Malformed!');
 
     const connections = { };
@@ -143,7 +144,7 @@ export class User {
   }
 
   /**
-   * Make the User object safe for the driver `register` and `postRegister`.
+   * Make the User object safe for the driver `register` and `postRegisterCheck`.
    * This contains all of the buckets and connections it has access to.
    * @param driver The driver config (friendly) id
    */

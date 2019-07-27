@@ -16,18 +16,22 @@
   - This improves performance when looking up your files instead of just assuming they all
   exist.
 - Advance Drivers
-  - Multi-Instance: Run more than one driver of a particular type with different configuration options
-  - Multi-User: Run one driver that supports individual users (for remote cloud storage like Dropbox)
-  - "Root Only": Only writing the root folder (profile.json and avatar), to limit storage use and encourage
-  users to use their own remote backends
+  - Multi-Instance: Run more than one driver of a particular type with different
+  configuration options
+  - Multi-User: Run one driver that supports individual users (for remote cloud storage
+  like Dropbox)
+  - "Root Only": Only writing the root folder (profile.json and avatar), to limit storage
+  use and encourage users to use their own remote backends
 - Plugins
-  - From making backups-on-request to providing a dashboard, it's all possible through the Plugin API Interface
+  - From making backups-on-request to providing a dashboard, it's all possible through the
+  Plugin API Interface
 
 Doc Shortcuts:
 - [About / Goals](#about--goals)
 - [Installation / Setup](#installation--setup)
 - [Configuration](#configuration)
 - [Api](#api)
+- [DB Drivers](#db-drivers)
 - [Drivers](#drivers)
 - [Plugins](#plugins)
 - [Building & Testing](#building--testing)
@@ -96,22 +100,16 @@ Of course, with all of this complexity, there will be some downsides:
 - It is required to use an association token for every request, as the Hestia Hub needs to know
 the end-user's address to be able to read the connection information
 - Connection information (such as dropbox tokens) are stored unencrypted within the Hestia Hub
-  - These can obviously still be revoked, and should not seem more unsecure than any other app
-  requesting to use your dropbox.
-- File Metadata and their Path are stored in the local database, unencrypted
+  - These can obviously still be revoked, and this should not seem more unsecure than any other
+  app requesting to use your dropbox.
+- File metadata and their paths are stored in the local database, unencrypted
   - While it could be concerning because of how easy it is to get it, reading a Gaia Hub's
-logs (or the box's HTTP logs) would get you the same information.
-- Bandwidth is used for reading, instead of only writing
-  - The normal Gaia Hub generally uses a redirect to the content url, but Hestia downloads
-and re-serves it, without caching, and so it can use a lot of bandwidth if large amounts of
-traffic exist. **This is aimed to be solved in the next version (v1.1).**
-
+logs (or the server's HTTP logs) would get you the same information.
 
 [Back to top](#)
 
 ## Installation / Setup
 
-- Make sure [RethinkDB 2.3.5+](https://rethinkdb.com/docs/install/) is installed and running
 - `npm i`
 - `npm run build-prod`
 - Copy `config.sample.json`, rename to `config.json` and configure (see:
@@ -133,15 +131,17 @@ interface Config {
   server_name: string; // The server name (e.x. `localhost:{port}` or `Hestia.otorno.cc`)
   valid_hub_urls?: string[]; // (optional) Other valid hub urls for apps to make requests to
 
-  db_host: string; // The RethinkDB host (default: `127.0.0.1`)
-  db_port: number; // The RethinkDB port (default: `28015`)
+  db_driver_path?: string; // (optional) the path where the db driver is located
+                          //     (default: `default-db-drivers/sqlite3`)
+  db_driver_config?: any; // (optional) the config for the db driver
 
   pm2?: boolean; // (optional) whether or not you are using pm2 (for logging issues)
   pm2InstanceVar?: string; // (optional) the instance ID if it is not default
 
   whitelist?: string[]; // (optional) A list of addresses which are whitelisted to use the node
 
-  max_blob_size: string | number; // The maximum blob size for files (i.e. "5mb", 5242880)
+  max_blob_size?: string | number; // (optional) The maximum blob size for files (i.e. "5mb", 5242880)
+                                   // default is 7.5mb
   page_size?: number; // The pagination size for list-files
 
   root_plugin?: string; // The plugin to use as the `/` plugin, i.e. for a web interface
@@ -213,8 +213,28 @@ browser configurations which need a link to your gaia hub (i.e. `server_name/gai
 | GET | `/gaia/read/{address}/{path}` | None | Read a file from the given bucket address and file path. |
 | POST | `/gaia/store/{address}/{path}` | Bucket, User | Store a file to the given bucket address and path. Post the contents as a body or urlencoded stream, preferably with a content-type and content-length. |
 | DELETE | `/gaia/delete/{address}/{path}` | Bucket, User | Delete the file given by the bucket address and path. |
-| POST | `/gaia/list-files/{address}` | Bucket, User | List the files in the given bucket. Within the body, put a JSON object with `{ page: number }` to specify the page number. Returns `{ entries: string[], page?: number }`, with entries being full-length paths and `page` only existing if there is another page to show. |
+| POST | `/gaia/list-files/{address}` | Bucket, User | List the files in the given bucket. Within the body, put a JSON object with `{ state?: boolean, page?: number }` to specify whether or not to return "state" info, and the page number. See below for return types. |
 | POST | `/gaia/revoke-all/{address}` | Bucket, User | Revoke all tokens in the given bucket up to a value (in seconds) in the body which is formatted as so: `{ oldestValidTimestamp: number }`. |
+
+*Return type for `/gaia/list-files/{address}` with `state` as `false` or undefined:*
+```typescript
+{
+  entries: string[]; // full-length paths of files
+  page?: number; // the next page, if it exists
+}
+```
+
+*Return type for `/gaia/list-files/{address}` with `state` as `true`:*
+```typescript
+{
+  entries: {
+    name: string; // full-length path of the file
+    contentLength: number; // the size of the file
+    lastModifiedDate: number; // the unix timestamp of when the file was last modified
+  }[];
+  page?: number; // the next page, if it exists
+}
+```
 
 ### API Routes (**`/api/v1`**)
 
@@ -278,7 +298,49 @@ ID itself -- you can get this from the `current` sub-object in the `/drivers` re
 | POST | `/api/v1/connections/{id}/store/{address}/{path}` | User | See `/gaia/store`. |
 | GET | `/api/v1/connections/{id}/read/{address}/{path}` | User | See `/gaia/read`. This one still requires the user to be authenticated because connection IDs are not unique across all users. |
 | DELETE | `/api/v1/connections/{id}/delete/{address}/{path}` | User | See `/gaia/delete`. |
-| POST | `/api/v1/connections/{id}/list-files/...` | User | Similar to the `/gaia/list-files` except that it doesn't require an address (though it can be provided), as it can list all files and also includes metadata; returns `{ entries: { path: string, size: number, hash: string, lastModified: string }[], page?: number }`
+| POST | `/api/v1/connections/{id}/list-files/{bucket?}` | User | Similar to the `/gaia/list-files` except that it doesn't require an address (though it can be provided), as it can list all files and also includes metadata; returns `{ entries: { path: string, size: number, hash: string, lastModified: string }[], page?: number }`
+
+[Back to top](#)
+
+## DB Drivers
+
+Database drivers can be selected by setting the `db_driver_path` entry in the `config.json`
+to a path that can be used to import it; `default-db-drivers` is the prefix for using default
+drivers, otherwise you can use a relative import (from the root directory where `hestia.js` is
+run from -- i.e when using `npm start` it will be the root repository directory), or an import
+from `node_modules` as you would normally do from a script (i.e. `npm i my-hestia-db-driver`
+and then, in the `config.json`, `"path":` would be `"my-hestia-db-driver"` and that's it).
+
+Default database drivers are the Sqlite3 driver (`default-drivers/sqlite3`), which is the one
+Hestia will use if none is specified, and the RethinkDB driver `default-drivers/rethinkdb`.
+
+### DB Driver Configuration
+
+Every database driver config requires a `path` field to specify where it is located at:
+
+```typescript
+interface DBDriverConfig {
+  path: string; // the path where the plugin is located
+}
+```
+
+View each database driver's docs to see how it needs to be configured specifically.
+
+For the default database drivers, see below:
+
+```typescript
+// path: `default-db-drivers/sqlite3`
+interface SQLite3Config {
+  filename?: string; // (optional) the filename of the database to use
+                     // default is `hestia-db.sqlite`
+}
+
+// path: `default-db-drivers/sqlite3`
+interface RethinkDBConfig {
+host?: string; // (optional) the RethinkDB host (default: `127.0.0.1`)
+port?: number; // (optional) the RethinkDB port (default: `28015`)
+}
+```
 
 [Back to top](#)
 
@@ -286,10 +348,10 @@ ID itself -- you can get this from the `current` sub-object in the `/drivers` re
 
 Drivers can be included by adding them in the `config.json`. The `path` field is used to
 import them; `default-drivers` is the prefix for using default drivers, otherwise you can use
-a relative import (from the root directory where `Hestia.js` is run from -- i.e when using
+a relative import (from the root directory where `hestia.js` is run from -- i.e when using
 `npm start` it will be the root repository directory), or an import from `node_modules` as you
-would normally do from a script (i.e. `npm i my-Hestia-driver` and then, in the `config.json`,
-`"path":` would be `"my-Hestia-plugin"` and that's it).
+would normally do from a script (i.e. `npm i my-hestia-driver` and then, in the `config.json`,
+`"path":` would be `"my-hestia-driver"` and that's it).
 
 Default drivers are the Disk driver (`default-drivers/disk`), which allows you to use the local
 harddisk and the User-Dropbox driver (`default-drivers/user-dropbox`), which allows users to use
@@ -325,7 +387,7 @@ For the default drivers, see below:
 
 ```typescript
 // path: `default-drivers/disk`
-interface DiskDriverConfigType extends DriverConfig {
+interface DiskDriverConfigType {
   storage_root_directory: string; // the directory to put the files (default: `./Hestia-storage`)
 
   // for storage caps (below), use a number of bytes or a string representation (i.e. "5mb")
@@ -334,10 +396,19 @@ interface DiskDriverConfigType extends DriverConfig {
 }
 
 // path: `default-drivers/user-dropbox`
-interface UserDropboxDriverConfig extends DriverConfig {
+interface UserDropboxDriverConfig {
   client_id: string; // the client Id for the http dropbox API
   secret: string; // the client secret for the http dropbox API
-  cache_time?: number; // (optional) the time (in seconds) for listFiles -- default 120s (2m)
+}
+
+// **NOTE**: When using this driver, make sure your Hestia Hub's max_blob_size is LESS THAN OR
+// EQUAL TO the Gaia Buckets you are connected to -- otherwise syncing will fail because the
+// remote gaia server will fail repeatedly. It WILL NOT separate files into parts for you.
+//
+// path: `default-drivers/gaia`
+interface GaiaDriverConfig {
+  token?: string; // (optional - required for hub-backend) the authorization token
+                  // if not provided, this will be a per-user backend
 }
 ```
 
@@ -347,10 +418,10 @@ interface UserDropboxDriverConfig extends DriverConfig {
 
 Plugins can be included by adding them in the `config.json`. The `path` field is used to
 import them; `default-plugins` is the prefix for using default plugins, otherwise you can use
-a relative import (from the root directory where `Hestia.js` is run from -- i.e when using
+a relative import (from the root directory where `hestia.js` is run from -- i.e when using
 `npm start` it will be the root repository directory), or a import from `node_modules` as you
-would normally do from a script (i.e. `npm i my-Hestia-plugin` and then, in the `config.json`,
-`"path":` would be `"my-Hestia-plugin"` and that's it).
+would normally do from a script (i.e. `npm i my-hestia-plugin` and then, in the `config.json`,
+`"path":` would be `"my-hestia-plugin"` and that's it).
 
 Default plugins are the Dashboard plugin (`default-plugins/dashboard`), which adds the Hestia
 frontend to the server (and must be the `root_plugin` in order to work properly), and the
@@ -401,8 +472,11 @@ interface BackupPluginConfig {
 ## Building & Testing
 
 - `npm run build` - build debug, output to `./build`
-- `npm run build-prod` - build prod, output to `./build-prod`
+  - `npm run build:backend`- just build (debug) the backend
+  - `npm run build:frontend`- just build (debug) the frontend
 - `npm test` - start the debug build (`./build`)
+
+- `npm run build-prod` - build prod, output to `./build-prod`
 - `npm start` - start the prod build (`./build-prod`)
 
 [Back to top](#)
@@ -412,8 +486,13 @@ interface BackupPluginConfig {
 Released under [Mozilla Public License 2.0](LICENSE.md), with graphics under
 [CC BY-SA 4.0.](https://creativecommons.org/licenses/by-sa/4.0/)
 
-Parts of the 7-Zip program are used (for the backup plugin), which is licensed
-under the GNU LGPL license. You can find the source code for 7-Zip at
-[www.7-zip.org](https://www.7-zip.org).
+What the code license means is that you are free to fork and modify the project,
+**but any changes to *this* code should be given back via pull requests**. Snippets
+are generally ok to take, and *your own plugins, drivers, and db drivers* do not
+need to be added to this repo -- those are yours to license as you will. Of course,
+I am not a lawyer, so go ask one if you need further help.
+
+The graphics license means that if you take my graphics, you can derive or republish
+them at will, as long as you give me attribution and share under the same license.
 
 [Back to top](#)

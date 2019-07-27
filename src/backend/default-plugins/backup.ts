@@ -1,12 +1,13 @@
 import * as path from 'path';
 import { Router } from 'express';
+import { Readable } from 'stream';
 import * as fs from 'fs-extra';
+import * as yazl from 'yazl';
+import axios from 'axios';
 import { getLogger, Logger } from '@log4js-node/log4js-api';
 import { Plugin, PluginApiInterface } from '../data/plugin';
 import { NotFoundError } from '../data/hestia-errors';
 
-import * as sevBin from '7zip-bin';
-import { add } from 'node-7z'; // typings are way out of date
 
 interface BackupPluginConfig {
   temp_directory?: string; // default: `__dirname/backups`
@@ -34,7 +35,7 @@ class BackupPlugin implements Plugin {
     this.tickWorking = true;
 
     const items = await fs.readdir(this.tempDirectory);
-    for(const item of items) if(item.endsWith('.zip') && (await fs.stat(item)).isFile()) {
+    for(const item of items) if(item.endsWith('.zip') && (await fs.stat(path.join(this.tempDirectory, item))).isFile()) {
       const address = item.slice(0, -'.zip'.length);
       if(this.backupWorking[address])
         continue;
@@ -47,37 +48,21 @@ class BackupPlugin implements Plugin {
   }
 
   getInfo() {
-    return { version : '1.0.0', source: 'default' };
-  }
-
-  sevenZipAdd(dest: string, src: string) {
-    // -sdel -tzip -mmt1 -mx4
-    const stream = add(dest, src, {
-      $bin: sevBin.path7za,
-      deleteFilesAfter: true,
-      archiveType: 'zip',
-      noRootDuplication: true,
-      recursive: true
-    });
-    return new Promise((res, rej) => {
-      stream.on('data', () => { });
-      stream.on('progress', () => { });
-      stream.on('end', () => res());
-      stream.on('error', (err) => rej(err));
-    });
+    return { version : '1.1.0', source: 'default' };
   }
 
   private async startWorking(address: string) {
     try {
       const zipPath = path.join(this.tempDirectory, address + '.zip');
-      const filesPath = path.join(this.tempDirectory, address);
       if(fs.existsSync(zipPath))
         fs.removeSync(zipPath);
-      fs.emptyDirSync(filesPath);
 
       const bigList: string[] = [];
-      // get mass list of files TODO
-      const user = await this.api.db.getUser(address);
+
+      const zip = new yazl.ZipFile();
+      zip.outputStream.pipe(fs.createWriteStream(zipPath, { mode: 0o600 }));
+
+      const user = await this.api.db.users.get(address);
       if(!user)
         throw new NotFoundError(`No user found with address: ${address}!`);
       for(const connId of Object.keys(user.connections)) {
@@ -102,15 +87,15 @@ class BackupPlugin implements Plugin {
         const addr = entry.slice(0, idx);
         const fpath = entry.slice(idx + 1);
 
-        const res = await this.api.gaia.read(addr, fpath);
-        fs.ensureFileSync(path.join(filesPath, entry));
-        res.stream.pipe(fs.createWriteStream(path.join(filesPath, entry), { mode: 0o600 }));
-
+        const res: { contentType: string, redirectUrl?: string, stream?: Readable } = await this.api.gaia.read(addr, fpath);
+        if(!res.stream)
+          res.stream = (await axios.get(res.redirectUrl, { responseType: 'stream' })).data;
+        zip.addReadStream(res.stream, entry);
         await new Promise(r => setTimeout(r, 500));
       }
       // zip 'em all
-      this.logger.debug('Zipping: ' + zipPath + ', .' + path.sep + path.join(filesPath, '*'));
-      await this.sevenZipAdd(zipPath, '.' + path.sep + path.join(filesPath, '*'));
+      this.logger.debug('Zipping: ' + zipPath);
+      zip.end();
     } catch(e) {
       this.logger.error(`Error backing up ${address}: ${e.stack || e}`);
     }

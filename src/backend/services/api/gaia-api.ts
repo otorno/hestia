@@ -64,7 +64,10 @@ export default function createGaiaRouter(logger: Logger) {
   wrapAsync(async (req, res) => {
     logger.debug('Gaia - Read: ', req.params.address, req.params.path);
     const read = await gaia.read(req.params.address, req.params.path);
-    read.stream.pipe(res.status(202).contentType(read.contentType));
+    if('stream' in read)
+      read.stream.pipe(res.status(202).contentType(read.contentType));
+    else
+      res.redirect(read.redirectUrl);
   }), handleError('gaia read'));
 
   // DELETE
@@ -104,11 +107,13 @@ export default function createGaiaRouter(logger: Logger) {
   router.post('/list-files/:address', json(),
     validateBucket({ getAuthTimestamp: a => gaia.getAuthTimestamp(a) }),
     wrapAsync(async (req, res) => {
-    const page = req.body.page ? Number.parseInt(req.body.page) : undefined;
+    const page = req.body.page ? Number.parseInt(req.body.page) : 0;
     if(page && Number.isNaN(page))
       throw new MalformedError('Could not parse page number as an Integer.');
 
-    const ret = await gaia.listFiles(String(req.params.address), page || 0, req.user);
+    const state = req.body.state ? Boolean(req.body.state) : false;
+
+    const ret = await gaia.listFiles(String(req.params.address), { page, state }, req.user);
 
     if(ret.page)
       ret.page = ret.page.toFixed() as any;

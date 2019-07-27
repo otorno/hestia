@@ -64,7 +64,7 @@ export function handleValidationError(err: any, req: Request, res: Response, nex
   if(err instanceof AuthError) {
     res.status(403).json({ message: err.message });
   } else {
-    logger.error(`Error validating token: ${err}`);
+    logger.error(`Error validating token:`, err);
     res.status(500).json({ message: `Failed to validate token.` });
   }
 }

@@ -1,7 +1,8 @@
 import { Readable } from 'stream';
 import { Router } from 'express';
 import { User } from './user';
-import { Metadata, ConnectionMetadataIndex, GlobalMetadataIndex, MetadataIndex } from './metadata-index';
+import { Metadata, ConnectionMetadataIndex, ExpandedMetadataIndex, MetadataIndex } from './metadata-index';
+import { ListFilesResponse } from './driver';
 
 export interface PluginInfo {
   id: string;
@@ -25,33 +26,43 @@ export interface PluginApiInterface {
     origin(): string;
   };
   gaia: {
-    read(address: string, path: string): Promise<{ contentType: string, stream: Readable }>;
+    read(address: string, path: string): Promise<{ contentType: string } & ({ stream: Readable } | { redirectUrl: string })>;
     store(address: string, path: string,
       data: { contentType: string, contentLength: number, stream: Readable }, userAddress?: string): Promise<Error[]>;
     delete(address: string, path: string): Promise<Error[]>;
-    listFiles(address: string, page?: number): Promise<{ entries: string[], page?: number }>;
+    listFiles<State extends boolean>(address: string, options?: { page?: number, state?: State },
+      userAddress?: string): Promise<ListFilesResponse<State>>;
   };
   db: {
     // user
-    getUser(address: string): Promise<User>;
-    getUserFromBucket(address: string): Promise<User>;
-    getAllUsers(): Promise<User[]>;
+    users: {
+      get(address: string): Promise<User>;
+      getFromBucket(address: string): Promise<User>;
+      getAll(): Promise<User[]>;
+    }
+
     // metadata
-    getUserIndex(userAddress: string): Promise<MetadataIndex>;
-    getIndexForConnection(connId: string, bucket?: string): Promise<ConnectionMetadataIndex>;
-    getGlobalUserIndex(userAddress: string): Promise<GlobalMetadataIndex>;
-    getFileInfo(path: string, connId?: string): Promise<Metadata & { connIds: string[] }>;
-    updateIndex(path: string, connId: string, metadata: Metadata): Promise<void>;
-    deleteIndex(path: string, connId: string): Promise<void>;
+    metadata: {
+      getForUser(userAddress: string): Promise<MetadataIndex>;
+      getForConnection(connId: string, bucket?: string): Promise<ConnectionMetadataIndex>;
+      getForUserExpanded(userAddress: string): Promise<ExpandedMetadataIndex>;
+      getForFile(path: string, connId?: string): Promise<Metadata & { connIds: string[] }>;
+      update(path: string, connId: string, metadata: Metadata): Promise<void>;
+      delete(path: string, connId: string): Promise<void>;
+    }
+
     // plugin storage
-    init(): Promise<void>;
-    set(key: string, value: any): Promise<void>;
-    get<T = any>(key: string): Promise<T>;
-    getAll(): Promise<{ key: string, value: any }[]>;
-    delete(key: string): Promise<void>;
+    plugin: {
+      init(): Promise<void>;
+      set(key: string, value: any): Promise<void>;
+      get<T = any>(key: string): Promise<T>;
+      getAll(): Promise<{ key: string, value: any }[]>;
+      delete(key: string): Promise<void>;
+    }
   };
   connections: {
-    read(id: string, userAddress: string, address: string, path: string): Promise<{ contentType: string, stream: Readable }>;
+    read(id: string, userAddress: string, address: string, path: string): Promise<Metadata &
+      ({ stream: Readable } | { redirectUrl: string })>;
     store(id: string, userAddress: string, address: string, path: string,
       data: { contentType: string, contentLength: number, stream: Readable }): Promise<void>;
     delete(id: string, userAddress: string, address: string, path: string): Promise<void>;
@@ -90,7 +101,7 @@ export interface Plugin {
   }): Promise<string>;
 
   beforeRead?(options: { path: string, storageTopLevel: string }): Promise<{ path: string, storageTopLevel: string }>;
-  afterRead?(options: { stream: Readable, contentType: string }): Promise<{ stream: Readable, contentType: string }>;
+  afterRead?(options: { stream: Readable }): Promise<{ stream: Readable }>;
 
   init(id: string, config: any, apiInterface: PluginApiInterface): Promise<{
     name: string,

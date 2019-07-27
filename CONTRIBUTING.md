@@ -95,7 +95,7 @@ interface Driver {
   // this is run after the second time through with a garunteed `User` object so
   // all driver-config data can be checked -- i.e. so the user doesn't register
   // two of the same dropbox accounts.
-  postRegisterCheck?(user: User, newEntry: any): Promise<void>;
+  postRegisterCheck?(user: User, connId: string, userData: any): Promise<void>;
 
   // unregister the user from the driver -- can only use via connections API,
   // DELETE `/api/v1/connections/{id}`

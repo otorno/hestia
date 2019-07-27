@@ -4,12 +4,11 @@ import * as path from 'path';
 import { getLogger, Logger } from '@log4js-node/log4js-api';
 
 import Driver from '../data/driver';
-import { DriverConfig } from '../data/config';
 import { NotFoundError, NotAllowedError, MalformedError } from '../data/hestia-errors';
 import { User } from '../data/user';
 import { parseBytes } from '../util';
 
-interface DiskDriverConfigType extends DriverConfig {
+interface DiskDriverConfigType {
   page_size: number; // global
 
   storage_root_directory: string; // the directory to put the files (default: `./hestia-storage`)
@@ -19,11 +18,8 @@ interface DiskDriverConfigType extends DriverConfig {
   max_total_storage?: string | number; // the overall storage cap for Hestia (default: unlimited)
 }
 
-const METADATA_DIRNAME = '.hestia-metadata';
-
 class DiskDriver implements Driver {
 
-  private id: string;
   private storageRootDirectory: string;
   private pageSize: number;
   private maxUserStorage: number;
@@ -64,24 +60,16 @@ class DiskDriver implements Driver {
     path: string;
     storageTopLevel: string;
     user: User;
-  }): Promise<{ contentType: string, stream: ReadableStream }> {
+  }): Promise<{ stream: ReadableStream }> {
     this.logger.info(`Read: ` + path.join(options.storageTopLevel, options.path));
     const p = this.validatePath(options.storageTopLevel, options.user.address, options.path);
-    const mp = path.normalize(path.join(
-      this.storageRootDirectory,
-      METADATA_DIRNAME,
-      options.storageTopLevel,
-      options.user.address,
-      options.path));
 
     if(!fs.existsSync(p))
       throw new NotFoundError();
     if(!fs.statSync(p).isFile())
       throw new NotFoundError();
 
-    const metadata = fs.readJsonSync(mp);
-
-    return { contentType: metadata['content-type'], stream: fs.createReadStream(p) };
+    return { stream: fs.createReadStream(p) };
   }
 
   public async performWrite(options: {
@@ -96,20 +84,11 @@ class DiskDriver implements Driver {
     const p = this.validatePath(options.storageTopLevel, options.user.address, options.path);
     this.validateUserStorage(options.user.address);
 
-    const mp = path.normalize(path.join(
-      this.storageRootDirectory,
-      METADATA_DIRNAME,
-      options.storageTopLevel,
-      options.user.address,
-      options.path));
-
     if(fs.existsSync(p) && !fs.statSync(p).isFile())
       throw new MalformedError('Path is a directory, cannot be written to!');
 
     fs.ensureFileSync(p);
     options.stream.pipe(fs.createWriteStream(p, { mode: 0o600 }));
-
-    fs.outputJsonSync(mp, { 'content-type': options.contentType }, { mode: 0o600 });
   }
 
   public async performDelete(options: {
@@ -126,28 +105,20 @@ class DiskDriver implements Driver {
     return fs.remove(p);
   }
 
-  private getMetadata(userAddress: string, paths: string[]) {
-    const metadata: { 'content-type': string }[] = [];
-    const root = path.normalize(path.join(this.storageRootDirectory, METADATA_DIRNAME, userAddress));
-    for(const p of paths)
-      metadata.push(fs.readJsonSync(path.join(root, p)));
-    return metadata;
-  }
-
-  private getAllFiles(dir: string): { path: string, size: number }[] {
-    let ret: { path: string, size: number }[] = [];
+  private getAllFiles(dir: string): { name: string, contentLength: number, lastModifiedDate: number }[] {
+    let ret: { name: string, contentLength: number, lastModifiedDate: number }[] = [];
     const entries = fs.readdirSync(dir);
     for(const e of entries) {
       const stat = fs.statSync(path.join(dir, e));
       if(stat.isFile())
-        ret.push({ path: path.posix.normalize(e), size: stat.size });
+        ret.push({ name: path.posix.normalize(e), contentLength: stat.size, lastModifiedDate: stat.mtimeMs });
       if(stat.isDirectory())
-        ret = ret.concat(this.getAllFiles(path.join(dir, e)).map(a => ({ size: a.size, path: path.posix.join(e, a.path) })));
+        ret = ret.concat(this.getAllFiles(path.join(dir, e)).map(a => Object.assign(a, { name: path.posix.join(e, a.name) })));
     }
     return ret;
   }
 
-  public async listFiles(prefix: string, page: number, user: User, justEntries?: boolean) {
+  public async listFiles(prefix: string, page: number, state: boolean, user: User): Promise<any> {
     this.logger.info(`List files: ` + path.normalize(prefix));
 
     const p = path.normalize(path.join(this.storageRootDirectory, user.address, prefix));
@@ -165,23 +136,24 @@ class DiskDriver implements Driver {
     if(files.length <= page * this.pageSize)
       return { entries: [] };
 
-    const entriesPartial = files.sort().slice(page * this.pageSize, (page + 1) * this.pageSize);
-    let entries;
-    if(justEntries)
-      entries = entriesPartial.map(a => a.path);
-    else {
-      const metadata = this.getMetadata(user.address, entriesPartial.map(a => a.path));
-      entries = entriesPartial.map((a, i) => ({ ...a, type: metadata[i]['content-type'] }));
-    }
+    const entries = files.sort((a, b) => a.name.localeCompare(b.name)).slice(page * this.pageSize, (page + 1) * this.pageSize);
 
-    if(files.length > ((page + 1) * this.pageSize))
-      return { entries, page: page + 1 };
-    else
-      return { entries };
+    const includePage = files.length > ((page + 1) * this.pageSize);
+    if(state) {
+      if(includePage)
+        return { entries: entries.map(a => a.name), page: page + 1 };
+      else
+        return { entries: entries.map(a => a.name) };
+    } else {
+      if(includePage)
+        return { entries, page: page + 1 };
+      else
+        return { entries };
+    }
   }
 
   async init(id: string, config: DiskDriverConfigType) {
-    this.id = id;
+
     this.storageRootDirectory = String(config.storage_root_directory) || './hestia-storage';
     this.pageSize = Number(config.page_size || 50);
     this.maxTotalStorage = parseBytes(config.max_total_storage || 0);
@@ -194,6 +166,10 @@ class DiskDriver implements Driver {
 
     if(this.maxTotalStorage && this.getSize(this.storageRootDirectory) >= this.maxTotalStorage)
       this.logger.warn(`Disk (driver) has reached the alloted size limit!`);
+
+    const mp = path.join(this.storageRootDirectory, '.hestia_metadata');
+    if(fs.existsSync(mp))
+      await fs.remove(mp);
 
     return {
       name: 'Harddisk',
@@ -212,11 +188,14 @@ class DiskDriver implements Driver {
   }
 
   async register(user: User) {
+    return this.autoRegister(user);
+  }
+
+  async autoRegister(user: User) {
     if(!user)
       throw new MalformedError('Must have user object to register.');
 
     fs.ensureDirSync(path.join(this.storageRootDirectory, user.address));
-    fs.ensureDirSync(path.join(this.storageRootDirectory, METADATA_DIRNAME, user.address));
     return { finish: { address: user.address} };
   }
 
@@ -224,10 +203,6 @@ class DiskDriver implements Driver {
     const p = path.join(this.storageRootDirectory, user.address);
     if(fs.existsSync(p))
       await fs.remove(p);
-
-    const mp = path.join(this.storageRootDirectory, METADATA_DIRNAME, user.address);
-    if(fs.existsSync(mp))
-      await fs.remove(mp);
   }
 }
 

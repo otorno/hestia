@@ -6,26 +6,7 @@ export interface Metadata {
   lastModified: Date;
 }
 
-export function metadataTrim(data: Metadata) {
-  return {
-    contentType: data.contentType,
-    size: data.size,
-    hash: data.hash,
-    lastModified: new Date(data.lastModified.getTime())
-  };
-}
-
-export interface SerializedMetadataIndexEntry extends Metadata {
-  // primary key
-  key: string; // path + ':' + connId
-
-  // secondary key
-  path: string;
-  // secondary key
-  connId: string;
-}
-
-export interface GlobalMetadataIndex {
+export interface ExpandedMetadataIndex {
   [path: string]: { [connId: string]: Metadata };
 }
 

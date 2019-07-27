@@ -6,8 +6,10 @@ import { User } from '../data/user';
 import { AUTH_TIMESTAMP_FILE_NAME } from './api/middleware';
 import { streamToBuffer, bufferToStream, hashStream } from '../util';
 import { getLogger } from 'log4js';
-import { NotAllowedError, MultiError, NotFoundError } from '../data/hestia-errors';
+import { NotAllowedError, MultiError } from '../data/hestia-errors';
+import axios from 'axios';
 import Config from '../data/config';
+import { ListFilesResponse } from '../data/driver';
 
 class GaiaService {
 
@@ -27,7 +29,11 @@ class GaiaService {
     else {
       try {
         const r = await this.read(address, AUTH_TIMESTAMP_FILE_NAME);
-        const d = await streamToBuffer(r.stream);
+        let d: Buffer;
+        if('redirectUrl' in r)
+          d = (await axios.get(r.redirectUrl, { responseType: 'arraybuffer' })).data;
+        else
+          d = await streamToBuffer(r.stream);
         const ts = Number.parseInt(d.toString('utf8'));
         return (this.authTimestampCache[address] = { bday: new Date(), ts: new Date(ts * 1000) }).ts;
       } catch(e) {
@@ -59,10 +65,10 @@ class GaiaService {
     this.authTimestampCache[`${address}`] = { bday: new Date(), ts: new Date(seconds * 1000) };
   }
 
-  public async read(address: string, path: string): Promise<{ contentType: string, stream: Readable }> {
+  public async read(address: string, path: string): Promise<{ contentType: string} & ({ stream: Readable } | { redirectUrl: string })> {
     // this.logger.debug('Read: ' + address + '/' + path);
-    const user = await db.getUserFromBucket(address);
-    const info = await db.getFileInfo(address + '/' + path);
+    const user = await db.users.getFromBucket(address);
+    const info = await db.metadata.getForFile(address + '/' + path);
     const connId = info.connIds[Math.floor(Math.random() * info.connIds.length)];
     const driver = drivers.get(user.connections[connId].driver);
 
@@ -79,7 +85,7 @@ class GaiaService {
     if(!data.stream.readable)
       throw new Error('Stream is not readable!');
 
-    user = user || await db.getUserFromBucket(address);
+    user = user || await db.users.getFromBucket(address);
 
     const rereadable = data.stream.pipe(new ReReadable());
 
@@ -109,7 +115,7 @@ class GaiaService {
         stream: rereadable.rewind(),
         user: user.makeSafeForConnection(conn.id)
       }).then(() => {
-        db.updateIndex(address + '/' + path, conn.id, {
+        db.metadata.update(address + '/' + path, conn.id, {
           contentType: data.contentType,
           size: data.contentLength,
           lastModified: new Date(),
@@ -130,13 +136,13 @@ class GaiaService {
     }
 
     if(updateUser)
-      await db.updateUser(user).catch(e => errors.push(e));
+      await db.users.update(user).catch(e => errors.push(e));
 
     return errors;
   }
 
   public async delete(address: string, path: string): Promise<Error[]> {
-    const user = await db.getUserFromBucket(address);
+    const user = await db.users.getFromBucket(address);
 
     const errors: Error[] = [];
     const connections = user.getConnections(address);
@@ -148,7 +154,7 @@ class GaiaService {
         path,
         storageTopLevel: address,
         user: user.makeSafeForConnection(conn.id)
-      }).then(() => db.deleteIndex(address + '/' + path, conn.id))
+      }).then(() => db.metadata.getForFile(address + '/' + path, conn.id))
         .catch(e => errors.push(e));
     }
 
@@ -162,28 +168,27 @@ class GaiaService {
     return errors;
   }
 
-  public async listFiles(address: string, page?: number, user?: User): Promise<{ entries: string[], page?: number }> {
-    user = user || await db.getUserFromBucket(address);
-    const info = await db.getIndex(address);
-    page = Number(page) || 0;
-    /*
-    const connId = info.connIds[Math.floor(Math.random() * info.connIds.length)];
-    const driver = drivers.get(user.connections[connId].driver);
+  public async listFiles<State extends boolean>(address: string, options?: { page?: number, state?: State }, user?: User):
+    Promise<ListFilesResponse<State>> {
 
-    const result = await driver.listFiles(address, page, user.makeSafeForConnection(connection.id), true);
-    const entries = result.entries.map(a => a.path);
-    if(result.page)
-      return { entries, page: result.page };
-    else
-      return { entries };
-    */
-   let entries = Object.keys(info);
+    user = user || await db.users.getFromBucket(address);
+    const info = await db.metadata.getForBucket(address);
+    const { page, state } = Object.assign({ page: 0, state: false }, options);
+
+   let entries = state ? Object.keys(info).map(k => ({
+     name: k,
+     contentLength: info[k].size,
+     lastModifiedDate: info[k].lastModified.getTime()
+    }))
+    : Object.keys(info);
+
    const entryCount = entries.length;
    entries = entries.slice(page * this.pageSize, (page + 1) * this.pageSize);
+
    if(entryCount > this.pageSize * (page + 1))
-      return { entries, page: page + 1 };
+      return { entries, page: page + 1 } as any;
     else
-      return { entries };
+      return { entries } as any;
   }
 }
 
