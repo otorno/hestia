@@ -4,7 +4,7 @@
 
 - Reorganized DB interface layout
   - this includes the plugin api, so those will break if you have been developing one
-  even though it's only been two weeks
+  even though it's only been ***four days*** geeze it hasn't been that long has it
 
 - Modified Driver Type to separate autoRegister calls from register calls
 
