@@ -7,6 +7,8 @@ import auth from '../auth-service';
 import gaia from '../gaia-service';
 import meta from '../meta-service';
 import drivers from '../driver-service';
+import { trueArray } from '../../util';
+import databaseService from '../database-service';
 
 export default function createGaiaRouter(logger: Logger) {
 
@@ -63,6 +65,14 @@ export default function createGaiaRouter(logger: Logger) {
   parseAddressPathRegex,
   wrapAsync(async (req, res) => {
     logger.debug('Gaia - Read: ', req.params.address, req.params.path);
+    if(trueArray.includes(req.query.metadata))
+      return res.json(await databaseService.metadata.getForFile(req.params.address + '/' + req.params.path)
+        .then(a => ({
+          contentType: a.contentType,
+          size: a.size,
+          hash: a.hash,
+          // lastModified: a.lastModified - for now, lets skip
+        })));
     const read = await gaia.read(req.params.address, req.params.path);
     if('stream' in read)
       read.stream.pipe(res.status(202).contentType(read.contentType));

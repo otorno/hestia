@@ -59,6 +59,8 @@
 
 - Made `/api/v1/connections/{id}/list-files` take a `{bucket}` instead of a `{path}`
 
+- Added `?metadata={boolean}` option to `/gaia/read/{...}` to view (non-private) file metadata (contentType, size, hash)
+
 - Removed a bunch of excess dependencies
 
 - Handle closing the application better
