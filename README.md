@@ -316,14 +316,6 @@ Hestia will use if none is specified, and the RethinkDB driver `default-drivers/
 
 ### DB Driver Configuration
 
-Every database driver config requires a `path` field to specify where it is located at:
-
-```typescript
-interface DBDriverConfig {
-  path: string; // the path where the plugin is located
-}
-```
-
 View each database driver's docs to see how it needs to be configured specifically.
 
 For the default database drivers, see below:
@@ -337,8 +329,8 @@ interface SQLite3Config {
 
 // path: `default-db-drivers/sqlite3`
 interface RethinkDBConfig {
-host?: string; // (optional) the RethinkDB host (default: `127.0.0.1`)
-port?: number; // (optional) the RethinkDB port (default: `28015`)
+  host?: string; // (optional) the RethinkDB host (default: `127.0.0.1`)
+  port?: number; // (optional) the RethinkDB port (default: `28015`)
 }
 ```
 
