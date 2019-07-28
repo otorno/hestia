@@ -7,7 +7,7 @@ import { User } from '../data/user';
 import axios from 'axios';
 import { join as pathJoin } from 'path';
 import * as fs from 'fs-extra';
-import { urljoin } from '../util';
+import { urljoin, streamToBuffer } from '../util';
 import authService from '../services/auth-service';
 
 interface GaiaDriverConfigType {
@@ -42,7 +42,7 @@ class GaiaDriver implements Driver {
     path: string;
     storageTopLevel: string;
     user: User;
-  }): Promise<{ contentType: string, redirectUrl: string }> {
+  }): Promise<{ redirectUrl: string }> {
     const path = options.storageTopLevel + '/' + options.path;
     this.logger.info('Read - ' + path);
 
@@ -55,7 +55,6 @@ class GaiaDriver implements Driver {
     }
 
     return {
-      contentType: null,
       redirectUrl: url
     };
   }
@@ -81,7 +80,7 @@ class GaiaDriver implements Driver {
       url = urljoin(hubUrl, 'store', bucket, path);
     }
 
-    await axios.post(url, options.stream, {
+    await axios.post(url, await streamToBuffer(options.stream), {
       headers: {
         ['Content-Type']: options.contentType,
         ['Content-Length']: options.contentLength,

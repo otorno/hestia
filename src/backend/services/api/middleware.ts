@@ -14,7 +14,7 @@ export const ADDRESS_PATH_REGEX = `${ADDRESS_REGEX}/+${PATH_REGEX}`;
 // from https://github.com/blockstack/gaia/blob/master/hub/src/server/revocations.ts
 export const AUTH_TIMESTAMP_FILE_NAME = 'authTimestamp';
 
-const logger = getLogger('services.api'); // cheating I know
+const logger = getLogger('services.middleware');
 
 export function wrapAsync(func: (req: Request, res?: Response, next?: NextFunction) => Promise<any>) {
   return function(req: Request, res: Response, next: NextFunction) {
@@ -35,21 +35,21 @@ export function parseAddressPathRegex(req: Request, res: Response, next: NextFun
 
 export function ensureStream(req: any, res: Response, next: NextFunction) {
   if(req.readable && req.readableLength > 0) {
-    // logger.debug('req is readable!');
+    // logger.debug('Req is readable!');
     req.stream = req;
     next();
   } else if(req.body) {
     if(req.body instanceof Readable) {
-      // logger.debug('body is instanceof readable!');
+      // logger.debug('Body is instanceof readable!');
       req.stream = req.body; // idk man
     } else if(req.body instanceof Buffer) {
-      // logger.debug('body is buffer!');
+      // logger.debug('Body is buffer!');
       req.stream = bufferToStream(req.body);
     } else if(typeof req.body === 'string') {
-      // logger.debug('body is string!', req.body);
+      // logger.debug('Body is string!', req.body);
       req.stream = bufferToStream(Buffer.from(req.body, 'utf8'));
     } else { // hope and pray
-      // logger.debug('body is JSONable?', req.body);
+      logger.warn('Body should be stream but is just object(?):', req.body);
       req.stream = bufferToStream(Buffer.from(JSON.stringify(req.body), 'utf8'));
     }
     next();

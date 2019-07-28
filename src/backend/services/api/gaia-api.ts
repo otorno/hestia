@@ -41,7 +41,7 @@ export default function createGaiaRouter(logger: Logger) {
           logger.warn(`Store Error for /${req.params.address}/${req.params.path}: `, e.message);
           return '400 Malformed: ' + e.message;
         } else {
-          logger.error(`Internal Store Error for /${req.params.address}/${req.params.path}:`, e);
+          logger.error(`Internal Store Error for /${req.params.address}/${req.params.path}:`, (e as any).isAxiosError ? e.stack : e);
           return '500 Failed to preform write.';
         }
       });

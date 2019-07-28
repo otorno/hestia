@@ -765,7 +765,9 @@ export default (Vue as VVue).component('hestia-explorer', {
       }));
       this.working = false;
       this.workingOn = '';
-      await this.refresh().then(() => this.sync(bucket, '/', false));
+      const err = await this.refresh().then(() => this.sync(bucket, '/', false));
+      if(err) // if we didn't sync correctly, leave asap so we don't lose data
+        return;
 
       this.working = true;
       this.workingOn = 'Removing connections...';
@@ -789,10 +791,15 @@ export default (Vue as VVue).component('hestia-explorer', {
               list.push(...sublist.entries.map(a => a.path));
             } while(page);
 
-            for(const entry of list)
+            let prog2 = 0;
+            for(const entry of list) {
+              this.workingOn = `Removing ${conn.name}'s ${entry}...`;
               await this.api.connections.deleteFileRaw(connId, entry);
+              this.progress = (++prog2) / list.length;
+            }
 
             // now set the buckets
+            this.workingOn = `Removing connection ${conn.name} from ${(this.useFamiliar ? this.nameAnnotations[bucket] : '') || bucket}...`;
             await this.api.connections.setBuckets(connId, newBuckets);
 
           } catch(e) {
@@ -904,6 +911,7 @@ export default (Vue as VVue).component('hestia-explorer', {
       this.working = true;
       this.workingOn = 'Syncing ' + itemName + '...';
       dir = dir || this.dir;
+      let err;
       try {
         if(refresh)
           await this.listFiles();
@@ -922,10 +930,12 @@ export default (Vue as VVue).component('hestia-explorer', {
         }
       } catch(e) {
         this.handleError(e, 'syncing');
+        err = e;
       }
       this.working = false;
       this.workingOn = '';
       this.progress = 0;
+      return err;
     }
   }
 });

@@ -185,7 +185,7 @@ class UserDropboxDriver implements Driver {
     path: string;
     storageTopLevel: string;
     user: User;
-  }): Promise<{ contentType: string, stream: ReadableStream } | { contentType: string, redirectUrl: string }> {
+  }): Promise<{ stream: ReadableStream } | { redirectUrl: string }> {
     this.logger.info(`Read: ` + urljoin(options.storageTopLevel, options.path));
     const p = urljoin(options.storageTopLevel, options.path);
 
@@ -198,7 +198,7 @@ class UserDropboxDriver implements Driver {
 
     const link = await this.api.db.get(options.user.connectionId + ':' + p.toLocaleLowerCase());
     if(link)
-      return { contentType: null, redirectUrl: link };
+      return { redirectUrl: link };
     else {
       this.logger.debug('No link indexed, getting...');
       const res = await dbx.sharingGetSharedLinks({ path: '/' + p });
@@ -212,9 +212,9 @@ class UserDropboxDriver implements Driver {
       } else {
         newLink = res.links[0].url;
       }
-      newLink = newLink.replace('?dl=0', '').replace('www.', 'dl.');
+      newLink = newLink.replace('?dl=0', '').replace('www.dropbox', 'dl.dropboxusercontent');
       await this.api.db.set(options.user.connectionId + ':' + p.toLocaleLowerCase(), newLink);
-      return { contentType: null, redirectUrl: newLink };
+      return { redirectUrl: newLink };
     }
   }
 
@@ -228,14 +228,14 @@ class UserDropboxDriver implements Driver {
   }): Promise<void> {
     this.logger.info(`Write: ` + urljoin(options.storageTopLevel, options.path));
     const p = urljoin(options.storageTopLevel, options.path);
-
+    const dbx = this.dbx(options.user);
     let filesUploadErr = false;
 
     if(options.contentLength < 8388608) { // 8MB
       try {
-        await this.dbx(options.user).filesUpload({
+        await dbx.filesUpload({
           path: '/' + p,
-          contents: streamToBuffer(options.stream),
+          contents: await streamToBuffer(options.stream),
           mode: { '.tag': 'overwrite' }
         });
       } catch(e) {
@@ -252,19 +252,20 @@ class UserDropboxDriver implements Driver {
         stream: options.stream
       });
     }
-    const link = this.api.db.get(options.user.connectionId + ':' + p.toLocaleLowerCase());
-    if(!link) {
-      const dbx = this.dbx(options.user);
-      const res = await dbx.sharingCreateSharedLinkWithSettings({
-        path: '/' + p,
-        settings: {
-          expires: 'never',
-          requested_visibility: { '.tag': 'public' }
-        }
+
+    const res = await dbx.sharingGetSharedLinks({ path: '/' + p });
+    let newLink: string;
+    if(!res.links.length) {
+      this.logger.debug('Creating a new shared link.');
+      const res2 = await dbx.sharingCreateSharedLinkWithSettings({
+        path: '/' + p
       });
-      const url = res.url.replace('?dl=0', '').replace('www.', 'dl.');
-      await this.api.db.set(options.user.connectionId + ':' + p, url);
+      newLink = res2.url;
+    } else {
+      newLink = res.links[0].url;
     }
+    newLink = newLink.replace('?dl=0', '').replace('www.dropbox', 'dl.dropboxusercontent');
+    await this.api.db.set(options.user.connectionId + ':' + p.toLocaleLowerCase(), newLink);
   }
 
   public async performDelete(options: {
@@ -275,7 +276,8 @@ class UserDropboxDriver implements Driver {
     this.logger.info(`Delete: ` + urljoin(options.storageTopLevel, options.path));
     const p = urljoin(options.storageTopLevel, options.path);
 
-    return this.dbx(options.user).filesDelete({ path: '/' + p }).then(() => {}, this.handleDbxError);
+    await this.api.db.delete(options.user.connectionId + ':' + p);
+    await this.dbx(options.user).filesDelete({ path: '/' + p }).then(() => {}, this.handleDbxError);
   }
 
   public async listFiles(prefix: string, page: number, state: boolean, user: User): Promise<any> {

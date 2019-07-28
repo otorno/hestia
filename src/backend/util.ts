@@ -98,5 +98,7 @@ export function urljoin(...urls: string[]) {
   const parts = str.split('?');
   str = parts.shift() + (parts.length > 0 ? '?' : '') + parts.join('&');
 
+  str = str.replace(/([^:])\/+/g, '$1/'); // replace double slashes with single
+
   return str;
 }
