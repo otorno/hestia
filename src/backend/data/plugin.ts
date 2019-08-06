@@ -24,6 +24,7 @@ export interface PluginApiInterface {
     }>;
     env(): string;
     origin(): string;
+    host(): string;
   };
   gaia: {
     read(address: string, path: string): Promise<{ contentType: string } & ({ stream: Readable } | { redirectUrl: string })>;

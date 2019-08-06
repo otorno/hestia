@@ -38,6 +38,9 @@ export class PluginApi implements PluginApiInterface, InternalPluginApiInterface
     },
     origin(): string {
       return meta.origin();
+    },
+    host(): string {
+      return meta.host();
     }
   });
 

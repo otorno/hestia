@@ -72,6 +72,10 @@ class MetaService {
   public origin(): string {
     return `${this.protocol}://${this.serverName}`;
   }
+
+  public host(): string {
+    return this.serverName;
+  }
 }
 
 export default new MetaService();
