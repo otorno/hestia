@@ -1,12 +1,24 @@
 ## TODO
 
+- allow plugins to provide a login-path and return a user
+  - i.e. login via dropbox/google/etc
+
 ### backend
 
-done?
+- gaia pass-through (core plugin, disable-able but enabled by 
+  defualt -- no id because it doesn't need to register)
+
+- e2e plugin -- test plugin items and api routes with
+  generated user/token (stored in plugin db)
+
+- modularize authentication into auth-drivers (like db drivers)
+  - current is "gaia-auth-driver"
 
 ### frontend
 
-done?
+- When importing from migration index, on collision ask if you
+want to overwrite or keep your current version
+  - With "Do this for all occurences" check box
 
 ## Later
 
@@ -15,15 +27,20 @@ done?
 - overarching admin feature (`/api/v1/admin/` + frontend work)
   - manage users & user-whitelist
 
+- inboxes plugin
+  - websocket for live updates instead of polling?
+
 - disk-driver - queue file writes so we don't get too busy
   - per file? per bucket?
 
 - gaia-driver - separate files into parts if they are too big
-  - how do we even know if they are too big? :thonk:
+  - set size limit for (hub-driver) gaia via `blob_size` setting
+  - set size limit for (user-driver) via user config?
 
 - app-db plugin - allow using apps to use the db (with realtime changefeeds)
   - realtime changefeeds are done by the web api, *not* by the underlying db
   - queue work orders to not stress out the db too much(?)
+  - basically implemenet radiks
 
 - plugin API - allow storing in gaia via internal bucket address
   - perhaps use new buckets instead? `/{plugin.longId}`? `/{plugin.id}`?
@@ -31,7 +48,8 @@ done?
     can just store all internal-hestia-plugin data b/c it shouldn't
     take up too much space (maybe mail will w/ attatchments)
 
-- push notifications service - [web-push](https://www.npmjs.com/package/web-push)
+- push notifications service -
+[web-push](https://www.npmjs.com/package/web-push)
   - POST `/api/v1/push/subscribe`
     - with filter info in body
       - include: string[] (buckets)
@@ -43,16 +61,9 @@ done?
   - POST `/api/v1/push/unsubscribe`
     - with subscription info in body
   - internal (plugin) api for sending messages to users/buckets/etc
+  - hook up inboxes plugin to it
 
-- inboxes plugin!
-  - use {internal address}/inboxes
-  - `/plugins/inboxes/poll?since={time}`
-  - `/plugins/inboxes/connect` - websocket notifications
-  - use bucket token to subscribe/poll for specific bucket
-  - use user token to subscribe to everything(?)
-  - use push notifications
-
-- sync plugin:
+- finish sync plugin:
   - when conn starts working, back off
   - in drivers -- check metadata so no doubling jobs?
 
@@ -67,9 +78,19 @@ done?
   - backup to .metadata/index.json
   - throw errors if it detects the gaia-backed-up index is mismatched (with old pushed update)
 
-- gaia passthrough plugin?
-  - for app-devs who want hestia functionality but have to deal with normal gaia users
-  - uses gaia-driver backend w/ psuedo-user idk
+- hestia-sync plugin
+  - we can run a hestia node in-browser/on-phone/on-desktop and 
+  then just sync from there, so if the remote node goes down
+  we can still access our data
+
+- hestia-shard(?) plugin
+  - connect to a network of hestia nodes so if one gets taken down
+  you can connect to a different one (ygg?)
+
+- update db driver for plugins to allow plugins to create multiple tables & do advance actions
+  - `api.db.plugin.createTable('my-table')` / `api.db.plugin.table('my-table').where(d => d('id').startsWith...`
+  - sqlite3/rethinkdb/rocksdb(??)
+  - redo db-service to use the underlying reql
 
 ### frontend
 
@@ -94,3 +115,8 @@ done?
 
 - create an app that works using this
   - (using association token/etc)
+
+- create a "hestia-client" that works for apps that need to use
+  a hestia node w/ pass-through (or *nobs* feat) -- also allows
+  them to create a local hestia node in the browser via
+  https://dexie.org/ (future when we have hestia-sync)

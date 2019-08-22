@@ -84,7 +84,9 @@ class PluginService {
           throw new Error('Plugin with longId "' + info.longId + '" already exists!');
         pluginInfo.name = info.name || pluginInfo.name;
         pluginInfo.router = info.router;
-        pluginInfo.authedRouter = info.authedRouter;
+        pluginInfo.authedAnyRouter = info.authedAnyRouter;
+        pluginInfo.authedBucketRouter = info.authedBucketRouter;
+        pluginInfo.authedUserRouter = info.authedRouter || info.authedUserRouter;
 
         this._onPluginInit.next({ plugin, pluginInfo });
         this.plugins[pluginInfo.id] = plugin;

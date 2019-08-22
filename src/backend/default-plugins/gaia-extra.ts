@@ -106,7 +106,7 @@ class GaiaExtraPlugin implements Plugin {
     return {
       name: 'Gaia-Extra',
       longId: 'io.github.michaelfedora.hestia.gaiaExtra',
-      authedRouter: this.router
+      authedUserRouter: this.router
     };
   }
 }

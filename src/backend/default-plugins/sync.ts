@@ -63,7 +63,7 @@ class SyncPlugin implements Plugin {
     return {
       name: 'Sync',
       longId: 'io.github.michaelfedora.hestia.sync',
-      authedRouter: router
+      authedUserRouter: router
     };
   }
 

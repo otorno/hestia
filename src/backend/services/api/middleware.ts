@@ -5,6 +5,7 @@ import auth from '../auth-service';
 import { AuthError, NotFoundError, NotAllowedError, MalformedError } from '../../data/hestia-errors';
 import { Readable } from 'stream';
 import { bufferToStream } from '../../util';
+import db from '../database-service';
 
 export const ADDRESS_REGEX = '([a-zA-Z0-9]+)';
 export const PATH_REGEX = '((?:[a-zA-Z0-9_\\-\\ \.]+/+)*[a-zA-Z0-9_\\-\\ \.]+)';
@@ -30,6 +31,12 @@ export function parseAddressPathRegex(req: Request, res: Response, next: NextFun
   fpath.replace(/\/{2,}/g, '/');
   req.params.address = address;
   req.params.path = fpath;
+  next();
+}
+
+export function parseAddressRegex(req: Request, res: Response, next: NextFunction) {
+  const address = String(req.params[0]);
+  req.params.address = address;
   next();
 }
 
@@ -103,6 +110,23 @@ export function handleError(action: string) {
   };
 }
 
+export function validateAny(options?: { ignoreGaiaMismatch?: boolean, ignoreFailure?: boolean }) {
+  options = Object.assign({ ignoreGaiaMismatch: false, ignoreFailure: false }, options);
+  return wrapAsync(async function(req: Request, res: Response, next: NextFunction) {
+    try {
+      const headers = req.headers.authorization ? req.headers : { authorization: 'Bearer ' + req.query.authorizationBearer };
+      const data = await auth.partialValidate(headers, options.ignoreGaiaMismatch);
+      req.user = await db.users.get(data.signerAddress);
+      req.params.address = data.issuerAddress;
+      req.params.auth = data;
+    } catch(e) {
+      if(!options.ignoreFailure)
+        return handleValidationError(e, req, res, next);
+    }
+    next();
+  });
+}
+
 export function validateBucket(options: {
   autoRegister?: boolean,
   getAuthTimestamp: (address: string) => Promise<Date>
@@ -110,23 +134,20 @@ export function validateBucket(options: {
   options = Object.assign({ autoRegister: false }, options);
   return wrapAsync(async function(req: Request, res: Response, next: NextFunction) {
     const address = String(req.params.address);
-    if(!/[a-zA-Z0-9]+/.test(address)) {
-      res.sendStatus(400);
-      return;
-    }
+    if(!/[a-zA-Z0-9]+/.test(address))
+      return res.sendStatus(400);
 
     const path = String(req.params.path);
     if(path !== 'profile.json' && options.autoRegister)
       options.autoRegister = false;
 
-    let user: User;
     try {
-      user = await auth.validateBucket(address, req.headers, () => options.getAuthTimestamp(address), options.autoRegister);
+      const data = await auth.validateBucket(address, req.headers, () => options.getAuthTimestamp(address), options.autoRegister);
+      req.user = data.user;
+      req.params.auth = data.auth;
     } catch(e) {
-      handleValidationError(e, req, res, next);
-      return;
+      return handleValidationError(e, req, res, next);
     }
-    req.user = user;
     next();
   });
 }
@@ -136,12 +157,12 @@ export function validateUser(options?: { ignoreGaiaMismatch?: boolean, ignoreFai
   return wrapAsync(async function(req: Request, res: Response, next: NextFunction) {
     try {
       const headers = req.headers.authorization ? req.headers : { authorization: 'Bearer ' + req.query.authorizationBearer };
-      req.user = await auth.validateUser(headers, options);
+      const data = await auth.validateUser(headers, options);
+      req.user = data.user;
+      req.params.auth = data.auth;
     } catch(e) {
-      if(!options.ignoreFailure) {
-        handleValidationError(e, req, res, next);
-        return;
-      }
+      if(!options.ignoreFailure)
+        return handleValidationError(e, req, res, next);
     }
     next();
   });

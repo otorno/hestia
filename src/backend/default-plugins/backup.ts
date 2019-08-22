@@ -145,7 +145,7 @@ class BackupPlugin implements Plugin {
     return {
       name: 'Backup',
       longId: 'io.github.michaelfedora.hestia.backup',
-      authedRouter: this.router
+      authedUserRouter: this.router
     };
   }
 }

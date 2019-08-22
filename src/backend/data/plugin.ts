@@ -3,13 +3,16 @@ import { Router } from 'express';
 import { User } from './user';
 import { Metadata, ConnectionMetadataIndex, ExpandedMetadataIndex, MetadataIndex } from './metadata-index';
 import { ListFilesResponse } from './driver';
+import { SubTable } from './db-driver';
 
 export interface PluginInfo {
   id: string;
   longId: string;
   name: string;
   router?: Router;
-  authedRouter?: Router;
+  authedAnyRouter?: Router;
+  authedUserRouter?: Router;
+  authedBucketRouter?: Router;
 }
 
 export interface PluginApiInterface {
@@ -108,7 +111,11 @@ export interface Plugin {
     name: string,
     longId: string,
     router?: Router,
+    /** @deprecated Use `authedUserRouter` instead */
     authedRouter?: Router
+    authedAnyRouter?: Router;
+    authedUserRouter?: Router;
+    authedBucketRouter?: Router;
   }>;
 
   getInfo?(): any;

@@ -1,3 +1,31 @@
+# Release v1.2
+
+## Breaking Changes
+
+## Changes
+
+- Updated dependencies
+
+### Frontend
+
+### Backend
+
+- Added Inboxes plugin(!)
+  - GET `/plugins/{id}/{address}` with the appropriate token to get a list of notifcations to read (returns an array of urls)
+    - Can specify `?after={date}` and `?before={date}` query parameters to limit what is returned
+  - POST `/plugins/{id}/{address}` with the any token to post a notification to that address (notification data is stored in the senders bucket)
+
+- Added the ability to specify what type of authed router you want
+  - `authedAnyRouter` (/plugins/{id}/...) validates any type of token (both user and bucket) but doesn't check whether the
+  issuer "belongs" to the route.
+  - `authedBucketRouter` (/plugins/{id}/{bucket}/...) validates whether the token is assigned to the bucket
+  - `authedUserRouter` (/plugins/{id}/...) validates the token is a user-token (for root address or internal hestia address)
+
+- The plugin initialization `authedRouter` return is now **deprecated** -- use `authedUserRouter` instead for the same feature set
+
+- Authorization now passes some data to `req.params.auth`, including the separate issuerAddress, signerAddress, and the token
+  itself.
+
 # Release v1.1
 
 ## Breaking Changes

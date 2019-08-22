@@ -7,13 +7,19 @@ import { PluginInfo } from '../data/plugin';
 import { Driver, DriverInfo } from '../data/driver';
 import Config from '../data/config';
 import * as uuid from 'uuid';
-import { handleValidationError, handleError, validateUser, wrapAsync } from './api/middleware';
+import {
+  wrapAsync,
+  handleValidationError, handleError,
+  validateUser, validateBucket,
+  ADDRESS_REGEX, parseAddressRegex, validateAny
+} from './api/middleware';
 
 import db from './database-service';
 import auth from './auth-service';
 import drivers from './driver-service';
 import plugins from './plugin-service';
 import meta from './meta-service';
+import gaia from './gaia-service';
 
 import createGaiaRouter from './api/gaia-api';
 import createConnectionApi from './api/conn-api';
@@ -177,7 +183,7 @@ class Api {
 
   public addPluginApi(pluginInfo: PluginInfo) {
 
-    if(!pluginInfo.router && !pluginInfo.authedRouter)
+    if(!pluginInfo.router && !pluginInfo.authedBucketRouter && !pluginInfo.authedUserRouter)
       return;
 
     if(this.initialized)
@@ -197,11 +203,31 @@ class Api {
         this.router.use('/', pluginInfo.router, handleError('root plugin ' + pluginInfo.id));
     }
 
-    if(pluginInfo.authedRouter) {
-      this.pluginRouter.use(prefix, validateUser(), pluginInfo.authedRouter, handleError('authed plugin ' + pluginInfo.id));
+    if(pluginInfo.authedAnyRouter) {
+      this.pluginRouter.use(prefix, validateAny(),
+        pluginInfo.authedAnyRouter, handleError('authed plugin ' + pluginInfo.id));
 
       if(this.rootPlugin === pluginInfo.id)
-        this.router.use('/', validateUser(), pluginInfo.router, handleError('authed root plugin ' + pluginInfo.id));
+        this.router.use(prefix, validateAny(),
+          pluginInfo.authedAnyRouter, handleError('authed (bucket) root plugin ' + pluginInfo.id));
+    }
+
+    if(pluginInfo.authedBucketRouter) {
+      this.pluginRouter.use(new RegExp(`${prefix}/${ADDRESS_REGEX}`),
+        parseAddressRegex, validateBucket({ getAuthTimestamp: a => gaia.getAuthTimestamp(a) }),
+        pluginInfo.authedBucketRouter, handleError('authed plugin ' + pluginInfo.id));
+
+      if(this.rootPlugin === pluginInfo.id)
+        this.router.use(new RegExp(`/${ADDRESS_REGEX}`),
+          parseAddressRegex, validateBucket({ getAuthTimestamp: a => gaia.getAuthTimestamp(a) }),
+          pluginInfo.authedBucketRouter, handleError('authed (bucket) root plugin ' + pluginInfo.id));
+    }
+
+    if(pluginInfo.authedUserRouter) {
+      this.pluginRouter.use(prefix, validateUser(), pluginInfo.authedUserRouter, handleError('authed plugin ' + pluginInfo.id));
+
+      if(this.rootPlugin === pluginInfo.id)
+        this.router.use('/', validateUser(), pluginInfo.authedUserRouter, handleError('authed (user) root plugin ' + pluginInfo.id));
     }
 
     this.logger.info(`Added ${this.rootPlugin === pluginInfo.id ? 'root ' : ''}${pluginInfo.name} plugin: ${prefix}`);

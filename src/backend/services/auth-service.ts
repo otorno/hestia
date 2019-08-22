@@ -216,22 +216,22 @@ class AuthService {
     getAuthTimestamp: (address: string) => Promise<Date>,
     autoRegister: boolean = false) {
 
-    const { signerAddress, issuerAddress, issuedAt } = this.partialValidate(requestHeaders);
+    const data = this.partialValidate(requestHeaders);
 
     let user: User;
     try {
-      user = await db.users.get(signerAddress);
+      user = await db.users.get(data.signerAddress);
     } catch(e) {
       if(e instanceof NotFoundError) {
         if(!autoRegister)
-          throw new AuthError(`User with address "${signerAddress}" is not registered!`);
+          throw new AuthError(`User with address "${data.signerAddress}" is not registered!`);
         else {
-          user = await db.users.register(signerAddress);
+          user = await db.users.register(data.signerAddress);
           await drivers.autoRegisterUser(user);
         }
       } else {
         this.logger.error(e);
-        throw new AuthError(`Erorr getting user with address "${signerAddress}"; might not exist!`);
+        throw new AuthError(`Erorr getting user with address "${data.signerAddress}"; might not exist!`);
       }
     }
 
@@ -239,20 +239,20 @@ class AuthService {
       await drivers.autoRegisterUser(user);
 
     // ISSUER ADDRESS (but allow global tokens)
-    if(signerAddress !== issuerAddress && user.internalBucketAddress !== issuerAddress && issuerAddress !== address)
+    if(data.signerAddress !== data.issuerAddress && user.internalBucketAddress !== data.issuerAddress && data.issuerAddress !== address)
       throw new AuthError('Issuer address mismatch: Issuer is not allowed to write on this address!');
 
     // REVOKE-ALL TIMESTAMP
     const authTimestamp = await getAuthTimestamp(address);
-    if(issuedAt) {
+    if(data.issuedAt) {
       if(authTimestamp.getTime() > 0)
         throw new AuthError('User-defined timestamp exists, and token provided no issued-at time!');
-    } else if(issuedAt < authTimestamp.getTime())
+    } else if(data.issuedAt < authTimestamp.getTime())
       throw new AuthError('Token issued before user-defined timestamp.');
 
     await db.users.update(user);
 
-    return user;
+    return { user, auth: data };
   }
 
   public async validateUser(requestHeaders: { authorization?: string },
@@ -260,29 +260,29 @@ class AuthService {
 
     options = Object.assign({ ignoreGaiaMismatch: false, autoRegister: false }, options);
 
-    const { signerAddress, issuerAddress } = this.partialValidate(requestHeaders, options.ignoreGaiaMismatch);
+    const data = this.partialValidate(requestHeaders, options.ignoreGaiaMismatch);
 
     let user: User;
     try {
-      user = await db.users.get(signerAddress);
+      user = await db.users.get(data.signerAddress);
     } catch(e) {
       if(e instanceof NotFoundError) {
         if(!options.autoRegister)
-          throw new AuthError(`User with address "${signerAddress}" is not registered!`);
+          throw new AuthError(`User with address "${data.signerAddress}" is not registered!`);
         else {
-          user = await db.users.register(signerAddress);
+          user = await db.users.register(data.signerAddress);
           await drivers.autoRegisterUser(user);
         }
       } else {
         this.logger.error(e);
-        throw new AuthError(`Erorr getting user with address "${signerAddress}"; might not exist!`);
+        throw new AuthError(`Erorr getting user with address "${data.signerAddress}"; might not exist!`);
       }
     }
 
-    if(signerAddress !== issuerAddress && user.internalBucketAddress !== issuerAddress)
+    if(data.signerAddress !== data.issuerAddress && user.internalBucketAddress !== data.issuerAddress)
       throw new NotAllowedError('Issuer address must be the signer address (root bucket) or the internal (hestia) bucket!');
 
-    return user;
+    return { user, auth: data };
   }
 
   public init(config: Config) {
