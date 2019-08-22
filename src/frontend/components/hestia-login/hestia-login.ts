@@ -99,7 +99,7 @@ export default (Vue as VVue).component('hestia-login', {
       setTimeout(() => this.$emit('working', false), 500);
     },
     registerToken() {
-      this.$dialog.prompt({
+      this.$buefy.dialog.prompt({
         message: 'Enter Gaia Token (can be found in browser network requests):',
         inputAttrs: {
           placeholder: 'header.body.signature'
@@ -124,7 +124,7 @@ export default (Vue as VVue).component('hestia-login', {
       this.working = false;
       this.workingOn = '';
       const message = (e.response && e.response.data  && e.response.data.message) || e.message || 'error';
-      this.$dialog.alert({
+      this.$buefy.dialog.alert({
         type: 'is-danger',
         message: `Error ${action}: ${message}`
       });
@@ -166,7 +166,7 @@ export default (Vue as VVue).component('hestia-login', {
         // time to add connections
         this.working = false;
         this.workingOn = '';
-        this.$modal.open({
+        this.$buefy.modal.open({
           hasModalCard: true,
           props: { token: this.token },
           component: ConnectionsModal,
@@ -192,7 +192,7 @@ export default (Vue as VVue).component('hestia-login', {
             this.working = false;
             this.workingOn = '';
             this.$emit('working', false);
-            this.$dialog.alert({
+            this.$buefy.dialog.alert({
               type: 'is-warning',
               title: 'Registered, but...',
               message: 'Cannot use the Hestia Dashboard unless Hestia is your selected Gaia Hub.'
@@ -202,7 +202,7 @@ export default (Vue as VVue).component('hestia-login', {
             });
           } else throw err;
       }).catch(err => {
-        this.$dialog.alert({
+        this.$buefy.dialog.alert({
           type: 'is-danger',
           message: 'Error verifying token: ' + err.message
         });

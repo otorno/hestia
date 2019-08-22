@@ -187,7 +187,7 @@ export default (Vue as VVue).component('hestia-explorer', {
     handleError(e: AxiosError, action: string) {
       const message = (e.response && e.response.data  && e.response.data.message) || e.message || 'error';
       console.error(e);
-      this.$dialog.alert({ title: 'error', type: 'is-danger', message: `Error ${action}: ${message}`, });
+      this.$buefy.dialog.alert({ title: 'error', type: 'is-danger', message: `Error ${action}: ${message}`, });
     },
     formatDate(time: number) {
       return DateTime.fromMillis(time, { zone: 'utc' }).toLocal().toLocaleString(DateTime.DATETIME_SHORT);
@@ -697,7 +697,7 @@ export default (Vue as VVue).component('hestia-explorer', {
       this.working = true;
       this.workingOn = 'Getting index...';
       try {
-        const jsonIndex = await new Promise<string>(r => this.$dialog.prompt({
+        const jsonIndex = await new Promise<string>(r => this.$buefy.dialog.prompt({
           message: 'JSON index from Mercurius or another Hestia hub:',
           inputAttrs: {
             type: 'textarea',
@@ -753,7 +753,7 @@ export default (Vue as VVue).component('hestia-explorer', {
       this.workingOn = 'Managing connections...';
       this.progress = 0;
 
-      const removedConns = await new Promise<string[]>(resolve => this.$modal.open({
+      const removedConns = await new Promise<string[]>(resolve => this.$buefy.modal.open({
         hasModalCard: true,
         props: { token: this.token, bucket, rootDir: this.userdata.identityAddress === bucket },
         component: BucketConnectionsModal,

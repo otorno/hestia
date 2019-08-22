@@ -20,7 +20,7 @@ export default (Vue as VVue).component('hestia-manage-account', {
   methods: {
     handleError(e: any, action: string) {
       const message = (e.response && e.response.data  && e.response.data.message) || e.message || 'error';
-      this.$dialog.alert({
+      this.$buefy.dialog.alert({
         type: 'is-danger',
         message: `Could not ${action}: ${message}.`
       });
@@ -35,7 +35,7 @@ export default (Vue as VVue).component('hestia-manage-account', {
         return;
       this.working = true;
       const choice = await new Promise(res => {
-        this.$dialog.confirm({
+        this.$buefy.dialog.confirm({
           hasIcon: true,
           icon: 'close-octagon',
           type: 'is-danger',
@@ -60,7 +60,7 @@ export default (Vue as VVue).component('hestia-manage-account', {
         return;
       this.working = true;
       const data = (await this.api.user.gdpr()).data;
-      this.$dialog.alert({
+      this.$buefy.dialog.alert({
         title: 'User GDPR (all user data)',
         message: '<pre>' + JSON.stringify(data, null, 2) + '</pre>',
         confirmText: 'Done'

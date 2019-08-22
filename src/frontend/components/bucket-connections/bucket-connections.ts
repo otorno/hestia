@@ -34,7 +34,7 @@ export default (Vue as VVue).component('hestia-bucket-connections', {
   methods: {
     handleError(e: AxiosError, action: string) {
       const message = (e.response && e.response.data  && e.response.data.message) || e.message || 'error';
-      this.$dialog.alert({
+      this.$buefy.dialog.alert({
         type: 'is-danger',
         message: `Could not ${action}: ${message}.`
       });

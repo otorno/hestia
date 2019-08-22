@@ -47,7 +47,7 @@ export default (Vue as VVue).component('hestia-connections', {
     },
     handleError(e: AxiosError, action: string) {
       const message = (e.response && e.response.data  && e.response.data.message) || e.message || 'error';
-      this.$dialog.alert({
+      this.$buefy.dialog.alert({
         type: 'is-danger',
         message: `Could not ${action}: ${message}.`
       });
@@ -70,7 +70,7 @@ export default (Vue as VVue).component('hestia-connections', {
     register(driverId: string) {
       const w = window.open();
       w.location.href = location.origin + '/api/v1/drivers/' + driverId + '/register?authorizationBearer=' + this.token;
-      this.$dialog.alert({
+      this.$buefy.dialog.alert({
         message: 'Opened up a new window for registration process...',
         confirmText: 'Done',
         onConfirm: () => this.refresh(),

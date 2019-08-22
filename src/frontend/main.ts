@@ -61,15 +61,15 @@ const v = new Vue({
               'working': ($event) => this.working = Boolean($event),
               'error': ($event) => {
                 if(!$event) return;
-                this.$dialog.alert({
+                this.$buefy.dialog.alert({
                   title: 'Error',
                   message: String($event),
                   type: 'is-danger'
                 });
               },
               'showDialog': ({ type, options }: { type: string, options: any }) => {
-                if(this.$dialog[type])
-                  this.$dialog[type](options);
+                if(this.$buefy.dialog[type])
+                  this.$buefy.dialog[type](options);
               },
               'update:done': (a: boolean) => this.done = a
             },

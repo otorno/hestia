@@ -72,7 +72,7 @@ export default (Vue as VVue).extend({
       await this.api.user.validateToken();
     } catch(err) {
       if(err && err.response && err.response.status === 403) {
-        await new Promise((resolve) => this.$dialog.alert({
+        await new Promise((resolve) => this.$buefy.dialog.alert({
           type: 'is-danger',
           title: 'Bad Token',
           message: 'Cannot use the Hestia Dashboard unless Hestia is your selected Gaia Hub.'
@@ -107,7 +107,7 @@ export default (Vue as VVue).extend({
   methods: {
     handleError(e: AxiosError, action: string) {
       const message = (e.response && e.response.data  && e.response.data.message) || e.message || 'error';
-      this.$dialog.alert({
+      this.$buefy.dialog.alert({
         type: 'is-danger',
         message: `Error ${action}: ` + message
       });
@@ -129,7 +129,7 @@ export default (Vue as VVue).extend({
     async connections() {
       if(!this.token)
         return;
-      this.$modal.open({
+      this.$buefy.modal.open({
         hasModalCard: true,
         props: { token: this.token },
         component: ConnectionsModal,
@@ -177,7 +177,7 @@ export default (Vue as VVue).extend({
     async manageAccount() {
       if(!this.token)
         return;
-      this.$modal.open({
+      this.$buefy.modal.open({
         hasModalCard: true,
         props: { token: this.token },
         component: ManageAccountComponent,
