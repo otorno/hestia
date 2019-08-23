@@ -123,7 +123,7 @@ class Api {
       let user: User;
       if(authorization) {
         try {
-          user = await auth.validateUser({ authorization }, { ignoreGaiaMismatch: true });
+          user = (await auth.validateUser({ authorization }, { ignoreGaiaMismatch: true })).user;
         } catch(e) {
           handleValidationError(e, req, res, next);
           return;
@@ -204,18 +204,18 @@ class Api {
     }
 
     if(pluginInfo.authedAnyRouter) {
-      this.pluginRouter.use(prefix, validateAny(),
-        pluginInfo.authedAnyRouter, handleError('authed plugin ' + pluginInfo.id));
+      this.pluginRouter.use(prefix, validateAny({ ignoreGaiaMismatch: true }),
+        pluginInfo.authedAnyRouter, handleError('authed (any) plugin ' + pluginInfo.id));
 
       if(this.rootPlugin === pluginInfo.id)
-        this.router.use(prefix, validateAny(),
-          pluginInfo.authedAnyRouter, handleError('authed (bucket) root plugin ' + pluginInfo.id));
+        this.router.use(prefix, validateAny({ ignoreGaiaMismatch: true }),
+          pluginInfo.authedAnyRouter, handleError('authed (any) root plugin ' + pluginInfo.id));
     }
 
     if(pluginInfo.authedBucketRouter) {
       this.pluginRouter.use(new RegExp(`${prefix}/${ADDRESS_REGEX}`),
         parseAddressRegex, validateBucket({ getAuthTimestamp: a => gaia.getAuthTimestamp(a) }),
-        pluginInfo.authedBucketRouter, handleError('authed plugin ' + pluginInfo.id));
+        pluginInfo.authedBucketRouter, handleError('authed (bucket) plugin ' + pluginInfo.id));
 
       if(this.rootPlugin === pluginInfo.id)
         this.router.use(new RegExp(`/${ADDRESS_REGEX}`),
@@ -224,7 +224,7 @@ class Api {
     }
 
     if(pluginInfo.authedUserRouter) {
-      this.pluginRouter.use(prefix, validateUser(), pluginInfo.authedUserRouter, handleError('authed plugin ' + pluginInfo.id));
+      this.pluginRouter.use(prefix, validateUser(), pluginInfo.authedUserRouter, handleError('authed (user) plugin ' + pluginInfo.id));
 
       if(this.rootPlugin === pluginInfo.id)
         this.router.use('/', validateUser(), pluginInfo.authedUserRouter, handleError('authed (user) root plugin ' + pluginInfo.id));

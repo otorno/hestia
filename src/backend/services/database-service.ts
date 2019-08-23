@@ -1,6 +1,6 @@
 import { getLogger } from 'log4js';
 import { User } from '../data/user';
-import { DbDriver, DbDriverSubCategory, DbDriverUsersCategory, DbDriverMetadataCategory, SubTable } from '../data/db-driver';
+import { DbDriver, DbDriverSubCategory, DbDriverUsersCategory, DbDriverMetadataCategory, SubTable, SubDB } from '../data/db-driver';
 import { ConnectionMetadataIndex, ExpandedMetadataIndex, Metadata, MetadataIndex } from '../data/metadata-index';
 import Config from '../data/config';
 
@@ -33,14 +33,12 @@ class DatabaseService implements DbDriver, DbDriverHandler {
 
   drivers = new class DbDriversCategory implements DbDriverSubCategory {
     constructor(private parent: DbDriverHandler) { }
-    public async ensureTable(id: string): Promise<void> { return this.parent.driver.drivers.ensureTable(id); }
-    public async getTable(id: string): Promise<SubTable> { return this.parent.driver.drivers.getTable(id); }
+    public getDB(id: string): SubDB { return this.parent.driver.drivers.getDB(id); }
   }(this);
 
   plugins = new class DbPluginsCategory implements DbDriverSubCategory {
     constructor(private parent: DbDriverHandler) { }
-    public async ensureTable(id: string): Promise<void> { return this.parent.driver.plugins.ensureTable(id); }
-    public async getTable(id: string): Promise<SubTable> { return this.parent.driver.plugins.getTable(id); }
+    public getDB(id: string): SubDB { return this.parent.driver.plugins.getDB(id); }
   }(this);
 
   users = new class DbUsersCategory implements DbDriverUsersCategory {

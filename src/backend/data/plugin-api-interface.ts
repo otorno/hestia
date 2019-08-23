@@ -7,7 +7,7 @@ import connections from '../services/connection-service';
 import gaia from '../services/gaia-service';
 import meta from '../services/meta-service';
 import { Metadata } from './metadata-index';
-import { SubTable } from './db-driver';
+import { SubDB } from './db-driver';
 import { User } from './user';
 
 interface InternalPluginApiInterface {
@@ -21,6 +21,7 @@ export class PluginApi implements PluginApiInterface, InternalPluginApiInterface
 
   constructor(id: string) {
     this._id = id;
+    this.db.plugin = db.plugins.getDB(id);
   }
 
   meta = Object.freeze({
@@ -68,6 +69,8 @@ export class PluginApi implements PluginApiInterface, InternalPluginApiInterface
 
     constructor(private parent: InternalPluginApiInterface) { }
 
+    plugin: SubDB;
+
     users = new class {
       constructor(private parent: InternalPluginApiInterface) { }
       async get(address: string) {
@@ -108,43 +111,6 @@ export class PluginApi implements PluginApiInterface, InternalPluginApiInterface
 
       async delete(path: string, connId: string) {
         await db.metadata.delete(path, connId);
-      }
-    }(this.parent);
-
-    // plugin data storage
-    plugin = new class {
-      table: SubTable;
-      constructor(private parent: InternalPluginApiInterface) { }
-
-      async init() {
-        if(this.table)
-          return;
-        await db.plugins.ensureTable(this.parent.id);
-        this.table = await db.plugins.getTable(this.parent.id);
-      }
-
-      async getAll() {
-        if(!this.table)
-          throw new Error('Plugin storage not initialized!');
-        return this.table.getAll();
-      }
-
-      async get<T = any>(key: string): Promise<T> {
-        if(!this.table)
-          throw new Error('Plugin storage not initialized!');
-        return this.table.get<T>(key);
-      }
-
-      async set(key: string, value: any) {
-        if(!this.table)
-          throw new Error('Plugin storage not initialized!');
-        return this.table.set(key, value);
-      }
-
-      async delete(key: string) {
-        if(!this.table)
-          throw new Error('Plugin storage not initialized!');
-        await this.table.delete(key);
       }
     }(this.parent);
   }(this);

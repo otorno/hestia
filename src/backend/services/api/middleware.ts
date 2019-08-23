@@ -117,7 +117,6 @@ export function validateAny(options?: { ignoreGaiaMismatch?: boolean, ignoreFail
       const headers = req.headers.authorization ? req.headers : { authorization: 'Bearer ' + req.query.authorizationBearer };
       const data = await auth.partialValidate(headers, options.ignoreGaiaMismatch);
       req.user = await db.users.get(data.signerAddress);
-      req.params.address = data.issuerAddress;
       req.auth = data;
     } catch(e) {
       if(!options.ignoreFailure)

@@ -12,6 +12,7 @@ import { User } from '../data/user';
 import { urljoin, streamToBuffer } from '../util';
 import { Subject } from 'rxjs';
 import { find } from 'rxjs/operators';
+import { SubTable } from '../data/db-driver';
 
 interface UserDropboxDriverConfig {
   page_size: number; // global
@@ -166,6 +167,7 @@ class UserDropboxDriver implements Driver {
   private stateCache: { [key: string]: string } = { };
 
   private api: DriverApiInterface;
+  private table: SubTable;
 
   private logger: Logger;
 
@@ -196,7 +198,7 @@ class UserDropboxDriver implements Driver {
     // - settings are requested_visibility: public, audience: public, access: viewer
     // return { redirectUrl } instead of the stream whatnot
 
-    const link = await this.api.db.get(options.user.connectionId + ':' + p.toLocaleLowerCase());
+    const link = await this.table.get(options.user.connectionId + ':' + p.toLocaleLowerCase());
     if(link)
       return { redirectUrl: link };
     else {
@@ -213,7 +215,7 @@ class UserDropboxDriver implements Driver {
         newLink = res.links[0].url;
       }
       newLink = newLink.replace('?dl=0', '').replace('www.dropbox', 'dl.dropboxusercontent');
-      await this.api.db.set(options.user.connectionId + ':' + p.toLocaleLowerCase(), newLink);
+      await this.table.set(options.user.connectionId + ':' + p.toLocaleLowerCase(), newLink);
       return { redirectUrl: newLink };
     }
   }
@@ -265,7 +267,7 @@ class UserDropboxDriver implements Driver {
       newLink = res.links[0].url;
     }
     newLink = newLink.replace('?dl=0', '').replace('www.dropbox', 'dl.dropboxusercontent');
-    await this.api.db.set(options.user.connectionId + ':' + p.toLocaleLowerCase(), newLink);
+    await this.table.set(options.user.connectionId + ':' + p.toLocaleLowerCase(), newLink);
   }
 
   public async performDelete(options: {
@@ -276,7 +278,7 @@ class UserDropboxDriver implements Driver {
     this.logger.info(`Delete: ` + urljoin(options.storageTopLevel, options.path));
     const p = urljoin(options.storageTopLevel, options.path);
 
-    await this.api.db.delete(options.user.connectionId + ':' + p);
+    await this.table.delete(options.user.connectionId + ':' + p);
     await this.dbx(options.user).filesDelete({ path: '/' + p }).then(() => {}, this.handleDbxError);
   }
 
@@ -349,7 +351,12 @@ class UserDropboxDriver implements Driver {
     this.jobQueue = new JobQueue(this.logger);
 
     this.api = api;
-    await api.db.init();
+
+    const tableList = await this.api.db.listTables();
+    if(!tableList.includes('basic'))
+      this.table = await this.api.db.createTable('basic');
+    else
+      this.table = await this.api.db.getTable('basic');
 
     const icon = fs.readFileSync(path.join(__dirname, 'icons', 'dropbox.png'));
 
@@ -424,7 +431,7 @@ class UserDropboxDriver implements Driver {
         if((link.expires && link.expires !== 'never') ||
           (link.link_permissions.requested_visibility && link.link_permissions.requested_visibility['.tag'] !== 'public'))
           continue;
-        this.api.db.set(id + ':' + link.path_lower.slice(1), link.url);
+        this.table.set(id + ':' + link.path_lower.slice(1), link.url);
       }
       if(res.has_more)
         cursor = res.cursor;
@@ -435,10 +442,10 @@ class UserDropboxDriver implements Driver {
 
   async unregister(user: User) {
     await this.dbx(user).authTokenRevoke();
-    const idx = await this.api.db.getAll();
+    const idx = await this.table.getAll();
     const todel = idx.map(a => a.key).filter(a => a.startsWith(user.connectionId));
     for(const key of todel)
-      await this.api.db.delete(key);
+      await this.table.delete(key);
   }
 }
 

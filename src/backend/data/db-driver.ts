@@ -1,10 +1,19 @@
 import { User } from './user';
 import { ConnectionMetadataIndex, MetadataIndex, ExpandedMetadataIndex, Metadata } from './metadata-index';
 
-export interface SubTable {
-  get<T = any>(key: string): Promise<T>;
-  getAll<T = any>(): Promise<{ key: string, value: T }[]>;
-  set(key: string, value: any): Promise<void>;
+// for when we want to implement multi-table interfaces for plugins
+// i.e. for when a plugin needs a table for each user or bucket (appDB, udb driver, etc)
+export interface SubDB {
+  createTable<T = any>(name: string): Promise<SubTable<T>>;
+  dropTable(name: string): Promise<void>;
+  listTables(): Promise<string[]>;
+  getTable<T = any>(name: string): Promise<SubTable<T>>;
+}
+
+export interface SubTable<T = any> {
+  get(key: string): Promise<T>;
+  getAll(): Promise<{ key: string, value: T }[]>;
+  set(key: string, value: T): Promise<void>;
   delete(key: string): Promise<void>;
 }
 
@@ -30,8 +39,7 @@ export interface DbDriverUsersCategory {
 }
 
 export interface DbDriverSubCategory {
-  ensureTable(id: string): Promise<void>;
-  getTable(id: string): Promise<SubTable>;
+  getDB(id: string): SubDB;
 }
 
 export interface DbDriver {

@@ -9,6 +9,7 @@ import { join as pathJoin } from 'path';
 import * as fs from 'fs-extra';
 import { urljoin, streamToBuffer } from '../util';
 import authService from '../services/auth-service';
+import { SubTable } from '../data/db-driver';
 
 interface GaiaDriverConfigType {
   page_size: number; // global
@@ -17,18 +18,17 @@ interface GaiaDriverConfigType {
                   // if not provided, this will be a per-user backend
 }
 
-interface GaiaDriverStoreType {
-  bucket: string;
-  hubUrl: string;
-  readUrl: string;
-  token: string;
-}
-
 class GaiaDriver implements Driver {
 
   private id: string;
   private pageSize: number;
   private api: DriverApiInterface;
+  private table: SubTable<{
+    bucket: string;
+    hubUrl: string;
+    readUrl: string;
+    token: string;
+  }>;
 
   private hubUrl: string;
   private token: string;
@@ -50,7 +50,7 @@ class GaiaDriver implements Driver {
     if(this.token) {
       url = urljoin(this.readUrl, this.bucket, options.user.address, path);
     } else {
-      const { readUrl, bucket } = await this.api.db.get<GaiaDriverStoreType>(options.user.connectionId);
+      const { readUrl, bucket } = await this.table.get(options.user.connectionId);
       url = urljoin(readUrl, bucket, path);
     }
 
@@ -75,7 +75,7 @@ class GaiaDriver implements Driver {
       token = this.token;
       url = urljoin(this.hubUrl, 'store', this.bucket, options.user.address, path);
     } else {
-      const { hubUrl, bucket, token: tok } = await this.api.db.get<GaiaDriverStoreType>(options.user.connectionId);
+      const { hubUrl, bucket, token: tok } = await this.table.get(options.user.connectionId);
       token = tok;
       url = urljoin(hubUrl, 'store', bucket, path);
     }
@@ -101,7 +101,7 @@ class GaiaDriver implements Driver {
       token = this.token;
       url = urljoin(this.hubUrl, 'delete', this.bucket, options.user.address, path);
     } else {
-      const { hubUrl, bucket, token: tok } = await this.api.db.get<GaiaDriverStoreType>(options.user.connectionId);
+      const { hubUrl, bucket, token: tok } = await this.table.get(options.user.connectionId);
       token = tok;
       url = urljoin(hubUrl, 'delete', bucket, path);
     }
@@ -123,7 +123,7 @@ class GaiaDriver implements Driver {
       token = this.token;
       searchPrefix = urljoin(bucket, user.address, prefix);
     } else {
-      const data = await this.api.db.get<GaiaDriverStoreType>(user.connectionId);
+      const data = await this.table.get(user.connectionId);
       hubUrl = data.hubUrl;
       bucket = data.bucket;
       token = data.token;
@@ -188,7 +188,12 @@ class GaiaDriver implements Driver {
       this.bucket = '';
       this.hubUrl = '';
       this.readUrl = '';
-      await this.api.db.init();
+
+      const tableList = await this.api.db.listTables();
+      if(!tableList.includes('basic'))
+        this.table = await this.api.db.createTable('basic');
+      else
+        this.table = await this.api.db.getTable('basic');
     }
 
     const icon = fs.readFileSync(pathJoin(__dirname, 'icons', 'gaia.png'));
@@ -252,7 +257,7 @@ class GaiaDriver implements Driver {
       throw new Error('Error getting hub info for claimed hub ' + claimedHub);
     }
 
-    await this.api.db.set(user.connectionId, { bucket, hubUrl: claimedHub, readUrl, token });
+    await this.table.set(user.connectionId, { bucket, hubUrl: claimedHub, readUrl, token });
     return { finish: { address: user.address } };
   }
 
@@ -261,10 +266,10 @@ class GaiaDriver implements Driver {
       // do nothing?
       // get my metadata, look for the user's, delete those files?
       // or le the user do the above (like how we do in the dashboard...)
-      // this.api.db.metadata.get(user.connectionId);
+      // this.table.metadata.get(user.connectionId);
     } else { // user-driver
       // delete info
-      await this.api.db.delete(user.connectionId);
+      await this.table.delete(user.connectionId);
     }
   }
 }

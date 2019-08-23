@@ -10,7 +10,7 @@ declare module 'express' {
       issuedAt: number;
       claimedHub?: string;
       validHub?: boolean;
-    }
+    };
   }
 }
 
@@ -24,6 +24,6 @@ declare module 'express-serve-static-core' {
       issuedAt: number;
       claimedHub?: string;
       validHub?: boolean;
-    }
+    };
   }
 }

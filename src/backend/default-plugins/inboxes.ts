@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { Plugin, PluginApiInterface } from '../data/plugin';
 import { wrapAsync, ADDRESS_REGEX, parseAddressRegex } from '../services/api/middleware';
 import { bufferToStream } from '../util';
+import { SubTable } from '../data/db-driver';
 
 interface InboxesPluginConfig {
   root_directory?: string; // defaults to `__dirname/../../frontend"`
@@ -28,22 +29,26 @@ type InboxDBEntry = {
 class InboxesPlugin implements Plugin {
 
   private api: PluginApiInterface;
-  private get db() { return this.api.db.plugin; }
+  private table: SubTable<InboxDBEntry>;
 
   async init(id: string, config: InboxesPluginConfig, api: PluginApiInterface) {
     this.api = api;
     config = Object.assign({ }, config);
 
+    const tableList = await this.api.db.plugin.listTables();
+    if(!tableList.includes('basic'))
+      this.table = await this.api.db.plugin.createTable('basic');
+    else
+      this.table = await this.api.db.plugin.getTable('basic');
+
     const authedAnyRouter = Router();
     const authedBucketRouter = Router();
-
-    await this.db.init();
 
     authedBucketRouter.get('/', wrapAsync(async (req, res) => {
       const after = req.params.after ? new Date(req.params.after || 0) : undefined;
       const before = req.params.before ? new Date(req.params.before || Date.now()) : undefined;
 
-      let all = await this.db.get<InboxDBEntry>(req.params.address);
+      let all = await this.table.get(req.params.address);
       if(after && before)
         all = all.filter(a => a.time > after && a.time < before);
       else if(after)
@@ -62,7 +67,7 @@ class InboxesPlugin implements Plugin {
       });
       const data = JSON.stringify(notif, null, 2);
 
-      let all = await this.db.get<InboxDBEntry>(req.params.address);
+      let all = await this.table.get(req.params.address);
 
       const subfpath = '/.hestia-outbox/' + time.getTime();
       let it = 0;
@@ -80,9 +85,9 @@ class InboxesPlugin implements Plugin {
       };
 
       // re-fetch in case something else changed
-      all = await this.db.get<InboxDBEntry>(req.params.address);
+      all = await this.table.get(req.params.address);
       all.push(entry);
-      await this.db.set(req.params.address, all);
+      await this.table.set(req.params.address, all);
     }));
 
     return {

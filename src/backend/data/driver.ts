@@ -1,18 +1,13 @@
 import { Readable as ReadableStream } from 'stream';
 import { User } from './user';
+import { SubDB } from './db-driver';
 
 export interface DriverApiInterface {
   meta: {
     env(): string;
     origin(): string;
   };
-  db: {
-    init(): Promise<void>;
-    set(key: string, value: any): Promise<void>;
-    delete(key: string): Promise<void>;
-    get<T = any>(key: string): Promise<T>;
-    getAll(): Promise<{ key: string, value: any }[]>;
-  };
+  db: SubDB;
 }
 
 interface ListFilesResponseExtended {

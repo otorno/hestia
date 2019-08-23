@@ -3,7 +3,7 @@ import { getLogger, Logger } from '@log4js-node/log4js-api';
 import { NotFoundError } from '../data/hestia-errors';
 import { User } from '../data/user';
 import { ConnectionMetadataIndex, ExpandedMetadataIndex, Metadata, MetadataIndex } from '../data/metadata-index';
-import { DbDriver, DbDriverSubCategory, DbDriverUsersCategory, DbDriverMetadataCategory, SubTable } from '../data/db-driver';
+import { DbDriver, DbDriverSubCategory, DbDriverUsersCategory, DbDriverMetadataCategory, SubTable, SubDB } from '../data/db-driver';
 
 interface SQLite3Config {
   filename?: string; // (optional) the filename of the database to use
@@ -157,29 +157,31 @@ function createMetadata(metadata: { contentType: string;
   };
 }
 
-class SQLite3SubTable {
+class SQLite3SubTable<T> implements SubTable<T> {
   private _get: SQLite3Statement;
   private _getAll: SQLite3Statement;
   private _set: SQLite3Statement;
   private _delete: SQLite3Statement;
 
-  static async create(db: SQLite3Database, table: string) {
-    const ret = new SQLite3SubTable();
+  private constructor() { }
+
+  static async create<T = any>(db: SQLite3Database, table: string): Promise<SQLite3SubTable<T>> {
+    const ret = new SQLite3SubTable<T>();
     ret._get = await db.prepare(`SELECT value FROM ${table} WHERE key = $key`);
     ret._getAll = await db.prepare(`SELECT * FROM ${table}`);
     ret._set = await db.prepare(`INSERT OR REPLACE INTO ${table} (key, value) VALUES ($key, $value)`);
     ret._delete = await db.prepare(`DELETE FROM ${table} WHERE key = $key`);
     return ret;
   }
-  async get<T = any>(key: string): Promise<T> {
+  async get(key: string): Promise<T> {
     return this._get.get<{ key: string, value: string }>({ $key: key }).then(obj => obj && obj.value ? JSON.parse(obj.value) : undefined);
   }
 
-  async getAll<T = any>(): Promise<{ key: string, value: T }[]> {
+  async getAll(): Promise<{ key: string, value: T }[]> {
     return this._getAll.all<{ key: string, value: string }>().then(v => v ? v.map(a => ({ key: a.key, value: JSON.parse(a.value) })) : []);
   }
 
-  async set(key: string, value: any) {
+  async set(key: string, value: T) {
     await this._set.run({ $key: key, $value: JSON.stringify(value) });
   }
 
@@ -215,13 +217,33 @@ class SQLite3Driver implements DbDriver {
       this.db = db;
     }
 
-    public async ensureTable(id: string): Promise<void> {
-      await this.db.exec(`CREATE TABLE IF NOT EXISTS [plugin_${id}] (key text primary key, value text)`);
-      await this.db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS [plugin_${id}_key_index] ON [plugin_${id}] (key)`);
+    private async createTable<T = any>(id: string, name: string): Promise<SubTable<T>> {
+      await this.db.exec(`CREATE TABLE IF NOT EXISTS [plugin_${id}_${name}] (key text primary key, value text)`);
+      await this.db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS [plugin_${id}_${name}_key_index] ON [plugin_${id}_${name}] (key)`);
+      return this.getTable<T>(id, name);
     }
 
-    public async getTable(id: string): Promise<SubTable> {
-      return SQLite3SubTable.create(this.db, `[plugin_${id}]`);
+    private async dropTable(id: string, name: string): Promise<void> {
+      await this.db.exec(`DROP TABLE IF EXISTS [plugin_${id}_${name}]`);
+    }
+
+    private async listTables(id: string): Promise<string[]> {
+      const result = await this.db.all<{ name: string }>(`SELECT name FROM sqlite_master WHERE type='table'`);
+      return result.map(a => a.name).filter(a => a.startsWith(`plugin_${id}`));
+    }
+
+    private getTable<T = any>(id: string, name: string): Promise<SubTable<T>> {
+      return SQLite3SubTable.create(this.db, `plugin_${id}_${name}`);
+    }
+
+    public getDB(id: string): SubDB {
+      const dis = this;
+      return {
+        createTable(name: string) { return dis.createTable(id, name); },
+        dropTable(name: string) { return dis.dropTable(id, name); },
+        listTables() { return dis.listTables(id); },
+        getTable(name: string) { return dis.getTable(id, name); }
+      };
     }
   };
 
@@ -232,13 +254,33 @@ class SQLite3Driver implements DbDriver {
       this.db = db;
     }
 
-    public async ensureTable(id: string): Promise<void> {
-      await this.db.exec(`CREATE TABLE IF NOT EXISTS [driver_${id}] (key text primary key, value text)`);
-      await this.db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS [driver_${id}_key_index] ON [driver_${id}] (key)`);
+    private async createTable<T = any>(id: string, name: string): Promise<SubTable<T>> {
+      await this.db.exec(`CREATE TABLE IF NOT EXISTS [driver_${id}_${name}] (key text primary key, value text)`);
+      await this.db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS [driver_${id}_${name}_key_index] ON [driver_${id}_${name}] (key)`);
+      return this.getTable(id, name);
     }
 
-    public async getTable(id: string): Promise<SubTable> {
-      return SQLite3SubTable.create(this.db, `[driver_${id}]`);
+    private async dropTable(id: string, name: string): Promise<void> {
+      await this.db.exec(`DROP TABLE IF EXISTS [driver_${id}_${name}]`);
+    }
+
+    private async listTables(id: string): Promise<string[]> {
+      const result = await this.db.all<{ name: string }>(`SELECT name FROM sqlite_master WHERE type='table'`);
+      return result.map(a => a.name).filter(a => a.startsWith(`driver_${id}`));
+    }
+
+    private async getTable<T = any>(id: string, name: string): Promise<SubTable<T>> {
+      return SQLite3SubTable.create(this.db, `driver_${id}_${name}`);
+    }
+
+    public getDB(id: string): SubDB {
+      const dis = this;
+      return {
+        createTable(name: string) { return dis.createTable(id, name); },
+        dropTable(name: string) { return dis.dropTable(id, name); },
+        listTables() { return dis.listTables(id); },
+        getTable(name: string) { return dis.getTable(id, name); }
+      };
     }
   };
 

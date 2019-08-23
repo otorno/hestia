@@ -3,7 +3,7 @@ import { getLogger, Logger } from '@log4js-node/log4js-api';
 import { NotFoundError } from '../data/hestia-errors';
 import { User, SerializedUser } from '../data/user';
 import { ConnectionMetadataIndex, ExpandedMetadataIndex, Metadata, MetadataIndex } from '../data/metadata-index';
-import { DbDriver, DbDriverSubCategory, DbDriverUsersCategory, DbDriverMetadataCategory, SubTable } from '../data/db-driver';
+import { DbDriver, DbDriverSubCategory, DbDriverUsersCategory, DbDriverMetadataCategory, SubTable, SubDB } from '../data/db-driver';
 
 interface SerializedMetadataIndexEntry extends Metadata {
   // primary key
@@ -29,14 +29,14 @@ interface RethinkDBConfig {
   port?: number; // (optional) the RethinkDB port (default: `28015`)
 }
 
-class RethinkDBSubTable implements SubTable {
+class RethinkDBSubTable<T = any> implements SubTable<T> {
   constructor(private table: RTable<{ key: string, value: any }>) { }
 
-  async get<T = any>(key: string): Promise<T> {
+  async get(key: string): Promise<T> {
     return this.table.get(key)('value').run() as Promise<T>;
   }
 
-  async getAll<T = any>(): Promise<{ key: string, value: T }[]> {
+  async getAll(): Promise<{ key: string, value: T }[]> {
     return this.table.run();
   }
 
@@ -97,27 +97,63 @@ class RethinkDBDriver implements DbDriver {
 
   public drivers = new class RethinkDBDriversCategory implements DbDriverSubCategory {
     constructor(private db: RDatabase) { }
-    public async ensureTable(driverId: string) {
-      return this.db.tableList().contains(`driver_${driverId}`).branch(
-        { dbs_created: 0 },
-        this.db.tableCreate(`driver_${driverId}`, { primaryKey: 'key' })).run();
+
+    private async createTable<T = any>(id: string, name: string): Promise<SubTable<T>> {
+      await this.db.tableCreate('driver_' + id + '_' + name, { primaryKey: 'key' }).run();
+      return this.getTable<T>(id, name);
     }
 
-    public async getTable(driverId: string) {
-      return new RethinkDBSubTable(this.db.table(`driver_${driverId}`));
+    private async dropTable(id: string, name: string): Promise<void> {
+      await this.db.tableDrop('driver_' + id + '_' + name).run();
+    }
+
+    private async listTables(id: string): Promise<string[]> {
+      return this.db.tableList().filter(doc => doc.match('^driver_' + id) as any).run();
+    }
+
+    private async getTable<T = any>(id: string, name: string): Promise<SubTable<T>> {
+      return new RethinkDBSubTable<T>(this.db.table('driver_' + id + '_' + name));
+    }
+
+    public getDB(id: string): SubDB {
+      const dis = this;
+      return {
+        createTable(name: string) { return dis.createTable(id, name); },
+        dropTable(name: string) { return dis.dropTable(id, name); },
+        listTables() { return dis.listTables(id); },
+        getTable(name: string) { return dis.getTable(id, name); }
+      };
     }
   }(this.dataDb);
 
   public plugins = new class RethinkDBPluginsCategory implements DbDriverSubCategory {
     constructor(private db: RDatabase) { }
-    public async ensureTable(pluginId: string) {
-      return this.db.tableList().contains(`plugin_${pluginId}`).branch(
-        { dbs_created: 0 },
-        this.db.tableCreate(`plugin_${pluginId}`, { primaryKey: 'key' })).run();
+
+    private async createTable<T = any>(id: string, name: string): Promise<SubTable<T>> {
+      await this.db.tableCreate('plugin_' + id + '_' + name).run();
+      return this.getTable(id, name);
     }
 
-    public async getTable(pluginId: string) {
-      return new RethinkDBSubTable(this.db.table(`plugin_${pluginId}`));
+    private async dropTable(id: string, name: string): Promise<void> {
+      await this.db.tableDrop('plugin_' + id + '_' + name).run();
+    }
+
+    private async listTables(id: string): Promise<string[]> {
+      return this.db.tableList().filter(doc => doc.match('^plugin_' + id) as any).run();
+    }
+
+    private async getTable<T = any>(id: string, name: string): Promise<SubTable<T>> {
+      return new RethinkDBSubTable<T>(this.db.table('plugin_' + id + '_' + name));
+    }
+
+    public getDB(id: string): SubDB {
+      const dis = this;
+      return {
+        createTable(name: string) { return dis.createTable(id, name); },
+        dropTable(name: string) { return dis.dropTable(id, name); },
+        listTables() { return dis.listTables(id); },
+        getTable(name: string) { return dis.getTable(id, name); }
+      };
     }
   }(this.dataDb);
 

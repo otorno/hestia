@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { User } from './user';
 import { Metadata, ConnectionMetadataIndex, ExpandedMetadataIndex, MetadataIndex } from './metadata-index';
 import { ListFilesResponse } from './driver';
-import { SubTable } from './db-driver';
+import { SubDB } from './db-driver';
 
 export interface PluginInfo {
   id: string;
@@ -56,13 +56,7 @@ export interface PluginApiInterface {
     }
 
     // plugin storage
-    plugin: {
-      init(): Promise<void>;
-      set(key: string, value: any): Promise<void>;
-      get<T = any>(key: string): Promise<T>;
-      getAll(): Promise<{ key: string, value: any }[]>;
-      delete(key: string): Promise<void>;
-    }
+    plugin: SubDB;
   };
   connections: {
     read(id: string, userAddress: string, address: string, path: string): Promise<Metadata &
