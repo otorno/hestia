@@ -2,6 +2,32 @@
 
 ## Breaking Changes
 
+- Plugins and Drivers can now have multiple tables
+  - This means the API has changed from
+
+```typescript
+await api.db.plugin.init();
+await api.db.plugin.set(key, value);
+const res = await api.db.plugin.get(key);
+// etc.
+```
+
+to
+
+```typescript
+let table;
+
+const list = await api.db.plugin.listTables();
+if(!list.includes('my-table'))
+  table = await api.db.plugin.createTable('my-table');
+else
+  table = await api.db.plugin.getTable('my-table');
+
+await table.set(key, value);
+const res = await table.get(key);
+// etc.
+```
+
 ## Changes
 
 - Updated dependencies
