@@ -26,6 +26,11 @@
 - Authorization now passes some data to `req.params.auth`, including the separate issuerAddress, signerAddress, and the token
   itself.
 
+  - Added "App DB" plugin which allows an app (using the key specified in `app_key`) to
+use the the underlying database for "decentralized" database functionality
+
+- Fixed typings
+
 # Release v1.1
 
 ## Breaking Changes
