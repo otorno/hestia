@@ -43,19 +43,19 @@ class AppDBPlugin implements Plugin {
     // router.delete('tables/:table');
 
     router.get('tables/:table/data', wrapAsync(async (req, res) => {
-      res.json(await this.api.db.plugin.getAll());
+      res.json(await this.api.db.plugin.getAll().then(a => a.filter(b => b.key.startsWith(req.auth.issuerAddress))));
     }));
     router.get('tables/:table/data/:key', wrapAsync(async (req, res) => {
-      res.json(await this.api.db.plugin.get(req.params.key));
+      res.json(await this.api.db.plugin.get(req.auth.issuerAddress + ':' + req.params.key));
     }));
     // router.post('tables/:table/data');
     router.put('tables/:table/data/:key', json(), wrapAsync(async (req, res) => {
-      await this.api.db.plugin.set(req.params.key, req.body);
+      await this.api.db.plugin.set(req.auth.issuerAddress + ':' + req.params.key, req.body);
       res.sendStatus(203);
     }));
     // router.delete('tables/:table/data');
     router.delete('tables/:table/data/:key', wrapAsync(async (req, res) => {
-      await this.api.db.plugin.delete(req.params.key);
+      await this.api.db.plugin.delete(req.auth.issuerAddress + ':' + req.params.key);
       res.sendStatus(203);
     }));
 

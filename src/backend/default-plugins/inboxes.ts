@@ -58,7 +58,7 @@ class InboxesPlugin implements Plugin {
       const time = new Date();
       const notif = Object.assign(req.body, {
         time,
-        from: req.params.auth.issuerAddress
+        from: req.auth.issuerAddress
       });
       const data = JSON.stringify(notif, null, 2);
 
