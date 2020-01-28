@@ -123,11 +123,11 @@ export class HestiaApi implements ApiInterface {
         return axios.get(this.parent.hestiaUrl + '/gaia/read/' + path);
     }
 
-    async store(address: string, path: string, data: { contentType?: string, contentLength?: number, data: any }) {
+    async store(address: string, path: string, data: { contentType?: string; contentLength?: number; data: any }) {
       return this.storeRaw(address + '/' + path, data);
     }
 
-    async storeRaw(path:  string, data: { contentType?: string, contentLength?: number, data: any }) {
+    async storeRaw(path:  string, data: { contentType?: string; contentLength?: number; data: any }) {
       const headers = this.parent.headers;
       if(data.contentLength)
         headers['Content-Length'] = data.contentLength;
@@ -147,7 +147,7 @@ export class HestiaApi implements ApiInterface {
 
     async listFiles(address: string, page: string | number = 0) {
       return axios.post<{
-        entries: string[], page?: string
+        entries: string[]; page?: string;
       }>(this.parent.hestiaUrl + '/gaia/list-files/' + address, { page }, { headers: this.parent.headers });
     }
 
@@ -161,8 +161,8 @@ export class HestiaApi implements ApiInterface {
 
     async revokeAll(address: string, newTimestamp: Date) {
       return axios.post<void>(this.parent.hestiaUrl + '/gaia/revoke-all/' + address,
-      { oldestValidTimestamp: (newTimestamp.getTime() / 1000).toFixed() },
-      { headers: this.parent.headers });
+        { oldestValidTimestamp: (newTimestamp.getTime() / 1000).toFixed() },
+        { headers: this.parent.headers });
     }
 
   }(this);
@@ -183,7 +183,7 @@ export class HestiaApi implements ApiInterface {
       return axios.get<{
         spaceUsed: number;
         spaceAvailable?: number;
-    }>(this.getUrl(connId) + '/info', { headers: this.parent.headers });
+      }>(this.getUrl(connId) + '/info', { headers: this.parent.headers });
     }
 
     async delete(connId: string) {
@@ -204,11 +204,11 @@ export class HestiaApi implements ApiInterface {
       return axios.get(this.getUrl(connId) + '/read/' + path);
     }
 
-    async store(connId: string, address: string, path: string, data: { contentType?: string, contentLength?: number, data: any }) {
+    async store(connId: string, address: string, path: string, data: { contentType?: string; contentLength?: number; data: any }) {
       return this.storeRaw(connId, address + '/' + path, data);
     }
 
-    async storeRaw(connId: string, path: string, data: { contentType?: string, contentLength?: number, data: any }) {
+    async storeRaw(connId: string, path: string, data: { contentType?: string; contentLength?: number; data: any }) {
       const headers = this.parent.headers;
       if(data.contentLength)
         headers['content-length'] = data.contentLength;
@@ -226,7 +226,7 @@ export class HestiaApi implements ApiInterface {
       return axios.delete<{ errors?: string[] }>(this.getUrl(connId) + '/delete/' + path, { headers: this.parent.headers });
     }
 
-    async listFiles(connId: string, path: string = '', page: string | number = 0) {
+    async listFiles(connId: string, path = '', page: string | number = 0) {
       return axios.post<{
         entries: {
           path: string;
@@ -243,21 +243,21 @@ export class HestiaApi implements ApiInterface {
     constructor(private parent: ApiInterface) { }
 
     async plugins() {
-      return axios.get<{ id: string, longId: string, name: string }[]>(this.parent.hestiaUrl + '/api/v1/plugins');
+      return axios.get<{ id: string; longId: string; name: string }[]>(this.parent.hestiaUrl + '/api/v1/plugins');
     }
 
     async drivers(): Promise<AxiosResponse<{
-      current?: { id: string, name: string, driver: string, default?: boolean, buckets: string[] }[],
-      available: { id: string, longId: string, name: string, rootOnly?: boolean, multi?: boolean }[]
+      current?: { id: string; name: string; driver: string; default?: boolean; buckets: string[] }[];
+      available: { id: string; longId: string; name: string; rootOnly?: boolean; multi?: boolean }[];
     }>> {
       if(this.parent.token)
         return axios.get<{
-          current: { id: string, name: string, driver: string, default?: boolean, buckets: string[] }[],
-          available: { id: string, longId: string, name: string, rootOnly?: boolean, multi?: boolean }[]
+          current: { id: string; name: string; driver: string; default?: boolean; buckets: string[] }[];
+          available: { id: string; longId: string; name: string; rootOnly?: boolean; multi?: boolean }[];
         }>(this.parent.hestiaUrl + '/api/v1/drivers', { headers: this.parent.headers });
       else
         return axios.get<{
-          available: { id: string, longId: string, name: string, rootOnly?: boolean, multi?: boolean }[]
+          available: { id: string; longId: string; name: string; rootOnly?: boolean; multi?: boolean }[];
         }>(this.parent.hestiaUrl + '/api/v1/drivers');
     }
 
@@ -290,27 +290,27 @@ export class HestiaApi implements ApiInterface {
       return axios.post<void>(this.apiUrl + '/unregister', null, { headers: this.parent.headers });
     }
 
-    async listFiles(options?: { global?: false, hash?: false }): Promise<AxiosResponse<{
+    async listFiles(options?: { global?: false; hash?: false }): Promise<AxiosResponse<{
       [path: string]: {
         contentType: string;
         size: number;
         hash: string;
         lastModified: string;
-        connIds: string[]
-      }
+        connIds: string[];
+      };
     }>>;
-    async listFiles(options: { global: true, hash?: false }): Promise<AxiosResponse<{
+    async listFiles(options: { global: true; hash?: false }): Promise<AxiosResponse<{
       [path: string]: {
         [connId: string]: {
           contentType: string;
           size: number;
           hash: string;
           lastModified: string;
-        }
-      }
+        };
+      };
     }>>;
-    async listFiles(options: { global?: boolean, hash?: true }): Promise<AxiosResponse<string>>;
-    async listFiles(options?: { global?: boolean, hash?: boolean }) {
+    async listFiles(options: { global?: boolean; hash?: true }): Promise<AxiosResponse<string>>;
+    async listFiles(options?: { global?: boolean; hash?: boolean }) {
       options = Object.assign({}, options);
       let url = this.apiUrl + '/list-files';
       if(options.global && options.hash)
@@ -334,8 +334,8 @@ export class HestiaApi implements ApiInterface {
             name: string;
             config: any;
             buckets: string[];
-          }
-        },
+          };
+        };
         indexes: {
           [path: string]: {
             [connId: string]: {
@@ -343,8 +343,8 @@ export class HestiaApi implements ApiInterface {
               size: number;
               hash: string;
               lastModified: Date;
-            }
-          }
+            };
+          };
         };
       }>(this.apiUrl + '/gdpr', { headers: this.parent.headers });
     }

@@ -1,10 +1,10 @@
 <template>
 <div id='hestia-login'>
-<div class='container' id='login'>
-  <span class='has-text-danger' :class='{ marg: Boolean(error) }' v-show='error'>{{error}}</span>
-  <button class='button is-primary slim' @click='loginBlockstack()'>Login via Blockstack</button>
-  <a style='align-self:flex-end;font-size:0.8em' @click='registerToken()'>Register via Token</a>
-</div>
+  <div id='login' class='container'>
+    <span v-show='error' class='has-text-danger' :class='{ marg: Boolean(error) }'>{{ error }}</span>
+    <button class='button is-primary slim' @click='loginBlockstack()'>Login via Blockstack</button>
+    <a style='align-self:flex-end;font-size:0.8em' @click='registerToken()'>Register via Token</a>
+  </div>
 </div>
 </template>
 <script src='./hestia-login.ts'></script>

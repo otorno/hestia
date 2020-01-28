@@ -13,7 +13,7 @@ import { ListFilesResponse } from '../data/driver';
 
 class GaiaService {
 
-  private authTimestampCache: { [key: string]: { bday: Date, ts: Date } } = { };
+  private authTimestampCache: { [key: string]: { bday: Date; ts: Date } } = { };
   private pageSize: number;
   private logger = getLogger('services.gaia');
 
@@ -80,7 +80,7 @@ class GaiaService {
   }
 
   public async store(address: string, path: string,
-    data: { contentType: string, contentLength: number, stream: Readable }, user?: User): Promise<Error[]> {
+    data: { contentType: string; contentLength: number; stream: Readable }, user?: User): Promise<Error[]> {
 
     if(!data.stream.readable)
       throw new Error('Stream is not readable!');
@@ -163,29 +163,29 @@ class GaiaService {
         throw errors[0];
       else
         throw new MultiError(errors, 'All connections failed to write!');
-   }
+    }
 
     return errors;
   }
 
-  public async listFiles<State extends boolean>(address: string, options?: { page?: number, state?: State }, user?: User):
-    Promise<ListFilesResponse<State>> {
+  public async listFiles<State extends boolean>(address: string, options?: { page?: number; state?: State }, user?: User):
+  Promise<ListFilesResponse<State>> {
 
     user = user || await db.users.getFromBucket(address);
     const info = await db.metadata.getForBucket(address);
     const { page, state } = Object.assign({ page: 0, state: false }, options);
 
-   let entries = state ? Object.keys(info).map(k => ({
-     name: k,
-     contentLength: info[k].size,
-     lastModifiedDate: info[k].lastModified.getTime()
+    let entries = state ? Object.keys(info).map(k => ({
+      name: k,
+      contentLength: info[k].size,
+      lastModifiedDate: info[k].lastModified.getTime()
     }))
-    : Object.keys(info);
+      : Object.keys(info);
 
-   const entryCount = entries.length;
-   entries = entries.slice(page * this.pageSize, (page + 1) * this.pageSize);
+    const entryCount = entries.length;
+    entries = entries.slice(page * this.pageSize, (page + 1) * this.pageSize);
 
-   if(entryCount > this.pageSize * (page + 1))
+    if(entryCount > this.pageSize * (page + 1))
       return { entries, page: page + 1 } as any;
     else
       return { entries } as any;

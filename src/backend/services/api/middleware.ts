@@ -71,8 +71,8 @@ export function handleValidationError(err: any, req: Request, res: Response, nex
   if(err instanceof AuthError) {
     res.status(403).json({ message: err.message });
   } else {
-    logger.error(`Error validating token:`, err);
-    res.status(500).json({ message: `Failed to validate token.` });
+    logger.error('Error validating token:', err);
+    res.status(500).json({ message: 'Failed to validate token.' });
   }
 }
 
@@ -110,7 +110,7 @@ export function handleError(action: string) {
   };
 }
 
-export function validateAny(options?: { ignoreGaiaMismatch?: boolean, ignoreFailure?: boolean }) {
+export function validateAny(options?: { ignoreGaiaMismatch?: boolean; ignoreFailure?: boolean }) {
   options = Object.assign({ ignoreGaiaMismatch: false, ignoreFailure: false }, options);
   return wrapAsync(async function(req: Request, res: Response, next: NextFunction) {
     try {
@@ -127,8 +127,8 @@ export function validateAny(options?: { ignoreGaiaMismatch?: boolean, ignoreFail
 }
 
 export function validateBucket(options: {
-  autoRegister?: boolean,
-  getAuthTimestamp: (address: string) => Promise<Date>
+  autoRegister?: boolean;
+  getAuthTimestamp: (address: string) => Promise<Date>;
 }) {
   options = Object.assign({ autoRegister: false }, options);
   return wrapAsync(async function(req: Request, res: Response, next: NextFunction) {
@@ -151,7 +151,7 @@ export function validateBucket(options: {
   });
 }
 
-export function validateUser(options?: { ignoreGaiaMismatch?: boolean, ignoreFailure?: boolean }) {
+export function validateUser(options?: { ignoreGaiaMismatch?: boolean; ignoreFailure?: boolean }) {
   options = Object.assign({ ignoreGaiaMismatch: false, ignoreFailure: false }, options);
   return wrapAsync(async function(req: Request, res: Response, next: NextFunction) {
     try {

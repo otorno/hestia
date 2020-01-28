@@ -1,9 +1,9 @@
 export class AuthError extends Error {
   type = 'auth_error';
 
- constructor(message?: string) {
-   super(message);
- }
+  constructor(message?: string) {
+    super(message);
+  }
 }
 
 export class NotFoundError extends Error {

@@ -1,22 +1,20 @@
 import { NotFoundError } from './hestia-errors';
 
 export interface SerializedUser {
-  id?: string;
   address: string;
   internalBucketAddress: string;
   defaultConnection: string;
   buckets: string[];
   connectionIds: string[];
   connections: {
-      buckets: number[];
-      driver: string;
-      name: string;
-      config: any;
+    buckets: number[];
+    driver: string;
+    name: string;
+    config: any;
   }[];
 }
 
 export class User {
-  id: string;
   address: string;
   internalBucketAddress: string;
 
@@ -28,7 +26,7 @@ export class User {
     name: string;
     config: any;
     buckets: string[];
-  } };
+  }; };
 
   // [bucket address]: { driver, iter }[] ??
   // [driver id]: { ... }[] ??
@@ -37,7 +35,6 @@ export class User {
   driverConfig?: any; // for "makeSafe"
 
   constructor(user?: Partial<User>) {
-    this.id = String(user.id || '');
     this.address = String(user.address || '');
     this.internalBucketAddress = String(user.internalBucketAddress || '');
     this.defaultConnection = String(user.defaultConnection || '');
@@ -67,7 +64,7 @@ export class User {
     return connections.map(id => ({ id, ...this.connections[id] }));
   }
 
-  public serialize(noId = false): SerializedUser {
+  public serialize(): SerializedUser {
     const connections = Object.values(this.connections);
     const buckets = connections.reduce((acc, c) => {
       for(const b of c.buckets)
@@ -75,7 +72,7 @@ export class User {
           acc.push(b);
       return acc;
     }, [] as string[]);
-    const r: SerializedUser = {
+    const u: SerializedUser = {
       address: this.address,
       internalBucketAddress: this.internalBucketAddress,
       defaultConnection: this.defaultConnection,
@@ -83,9 +80,7 @@ export class User {
       connectionIds: Object.keys(this.connections),
       connections: connections.map(c => Object.assign({}, c, { buckets: c.buckets.map(b => buckets.indexOf(b)) })),
     };
-    if(!noId)
-      r.id = this.id;
-    return r;
+    return u;
   }
 
   public static deserialize(obj: SerializedUser): User {
@@ -104,7 +99,6 @@ export class User {
     }
 
     return new User({
-      id: obj.id,
       address: obj.address,
       internalBucketAddress: obj.internalBucketAddress,
       defaultConnection: obj.defaultConnection,
@@ -132,7 +126,6 @@ export class User {
       throw new NotFoundError('No connection of id "' + connection + '" found!');
 
     return new User({
-      id: this.id,
       address: this.address,
       connections: { [connection]: Object.assign({},
         this.connections[connection],
@@ -158,7 +151,6 @@ export class User {
     }
 
     return new User({
-      id: this.id,
       address: this.address,
       connections
     });

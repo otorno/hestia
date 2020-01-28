@@ -14,7 +14,7 @@ class MetaService {
     this.protocol = config.protocol;
   }
 
-  public plugins(): { id: string, name: string }[] {
+  public plugins(): { id: string; name: string }[] {
     return plugins.getInfo().map(a => {
       const r = { id: a.id, name: a.name, longId: a.longId };
       const p = plugins.get(a.id);
@@ -25,14 +25,14 @@ class MetaService {
     });
   }
 
-  public drivers(): { available: { id: string, name: string, longId: string, rootOnly?: boolean, multiUser?: boolean }[] };
+  public drivers(): { available: { id: string; name: string; longId: string; rootOnly?: boolean; multiUser?: boolean }[] };
   public drivers(user: User): {
-    current: { id: string, name: string,  driver: string, default?: boolean, buckets: string[] }[],
-    available: { id: string, name: string, longId: string, rootOnly?: boolean, multiUser?: boolean }[]
+    current: { id: string; name: string;  driver: string; default?: boolean; buckets: string[] }[];
+    available: { id: string; name: string; longId: string; rootOnly?: boolean; multiUser?: boolean }[];
   };
   public drivers(user?: User): {
-    current?: { id: string, name: string, driver: string, default?: boolean, buckets: string[] }[],
-    available: { id: string, name: string, longId: string, rootOnly?: boolean, multiUser?: boolean }[]
+    current?: { id: string; name: string; driver: string; default?: boolean; buckets: string[] }[];
+    available: { id: string; name: string; longId: string; rootOnly?: boolean; multiUser?: boolean }[];
   } {
     const available = drivers.getInfo().filter(a =>
       a.whitelist ?
@@ -50,7 +50,7 @@ class MetaService {
     if(!user)
       return { available };
     else {
-      const current: { id: string, driver: string, name: string, default?: boolean, buckets: string[] }[] = [];
+      const current: { id: string; driver: string; name: string; default?: boolean; buckets: string[] }[] = [];
       for(const [connId, connection] of Object.entries(user.connections)) {
         current.push({
           id: connId,

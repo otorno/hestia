@@ -35,7 +35,7 @@ class ConnectionService {
     return info;
   }
 
-  /// = NON-PLUGIN UTIL FUNCTIONS
+  // / = NON-PLUGIN UTIL FUNCTIONS
 
   public async deleteConnection(id: string, user: User): Promise<void> {
     if(!user.connections[id])
@@ -67,12 +67,12 @@ class ConnectionService {
     await db.users.update(user);
   }
 
-  /// === PLUGIN API FUNCTIONS
+  // / === PLUGIN API FUNCTIONS
 
-  /// = GAIA FUNCTIONS
+  // / = GAIA FUNCTIONS
 
   public async read(id: string, user: User, address: string, path: string): Promise<
-    ({ stream: Readable } | { redirectUrl: string }) & Metadata> {
+  ({ stream: Readable } | { redirectUrl: string }) & Metadata> {
     if(!user.connections[id])
       throw new NotFoundError(`No connection with id "${id}" found for user "${user.address}!`);
 
@@ -84,7 +84,7 @@ class ConnectionService {
   }
 
   public async store(id: string, user: User, address: string, path: string,
-    data: { contentType: string, contentLength: number, stream: Readable }): Promise<void> {
+    data: { contentType: string; contentLength: number; stream: Readable }): Promise<void> {
     user = user || await db.users.getFromBucket(address);
 
     if(!user.connections[id])
@@ -130,8 +130,8 @@ class ConnectionService {
   }
 
   public async listFiles(id: string, user: User, bucket?: string, page?: number): Promise<{
-    entries: ({ path: string } & Metadata)[],
-    page?: number }> {
+    entries: ({ path: string } & Metadata)[];
+    page?: number; }> {
     if(!user.connections[id])
       throw new NotFoundError(`No connection with id "${id}" found for user "${user.address}!`);
     page = Number(page) || 0;
@@ -148,9 +148,9 @@ class ConnectionService {
       return { entries };
   }
 
-  /// = UTIL FUNCTIONS
+  // / = UTIL FUNCTIONS
 
-  public async getInfo(id: string, user: User): Promise<{ spaceUsed: number, spaceAvailable?: number }> {
+  public async getInfo(id: string, user: User): Promise<{ spaceUsed: number; spaceAvailable?: number }> {
     if(!user.connections[id])
       throw new NotFoundError(`No connection with id "${id}" found for user "${user.address}!`);
 

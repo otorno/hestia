@@ -15,7 +15,7 @@ interface GaiaDriverConfigType {
   page_size: number; // global
 
   token?: string; // (optional - required for hub-backend) the authorization token
-                  // if not provided, this will be a per-user backend
+  // if not provided, this will be a per-user backend
 }
 
 class GaiaDriver implements Driver {
@@ -114,7 +114,7 @@ class GaiaDriver implements Driver {
 
 
   public async listFiles<State extends boolean>(prefix: string, page: number, state: State, user: User): Promise<ListFilesResponse<State>> {
-    this.logger.info(`List files: ` + prefix);
+    this.logger.info('List files: ' + prefix);
 
     let hubUrl: string, bucket: string, token: string, searchPrefix: string;
     if(this.token) {
@@ -221,7 +221,7 @@ class GaiaDriver implements Driver {
     return { finish: { address: user.address } };
   }
 
-  async register(user: User, redirectUrl: string, req: { headers: { [key: string]: string | string[] }, query: any }) {
+  async register(user: User, redirectUrl: string, req: { headers: { [key: string]: string | string[] }; query: any }) {
     if(this.token)
       return this.autoRegister(user);
 

@@ -7,7 +7,7 @@ import { DbDriver, DbDriverSubCategory, DbDriverUsersCategory, DbDriverMetadataC
 
 interface SQLite3Config {
   filename?: string; // (optional) the filename of the database to use
-                     // default is `hestia-db.sqlite`
+  // default is `hestia-db.sqlite`
 }
 
 class SQLite3Database {
@@ -174,11 +174,11 @@ class SQLite3SubTable<T> implements SubTable<T> {
     return ret;
   }
   async get(key: string): Promise<T> {
-    return this._get.get<{ key: string, value: string }>({ $key: key }).then(obj => obj && obj.value ? JSON.parse(obj.value) : undefined);
+    return this._get.get<{ key: string; value: string }>({ $key: key }).then(obj => obj && obj.value ? JSON.parse(obj.value) : undefined);
   }
 
-  async getAll(): Promise<{ key: string, value: T }[]> {
-    return this._getAll.all<{ key: string, value: string }>().then(v => v ? v.map(a => ({ key: a.key, value: JSON.parse(a.value) })) : []);
+  async getAll(): Promise<{ key: string; value: T }[]> {
+    return this._getAll.all<{ key: string; value: string }>().then(v => v ? v.map(a => ({ key: a.key, value: JSON.parse(a.value) })) : []);
   }
 
   async set(key: string, value: T) {
@@ -228,7 +228,7 @@ class SQLite3Driver implements DbDriver {
     }
 
     private async listTables(id: string): Promise<string[]> {
-      const result = await this.db.all<{ name: string }>(`SELECT name FROM sqlite_master WHERE type='table'`);
+      const result = await this.db.all<{ name: string }>('SELECT name FROM sqlite_master WHERE type=\'table\'');
       return result.map(a => a.name).filter(a => a.startsWith(`plugin_${id}`));
     }
 
@@ -265,7 +265,7 @@ class SQLite3Driver implements DbDriver {
     }
 
     private async listTables(id: string): Promise<string[]> {
-      const result = await this.db.all<{ name: string }>(`SELECT name FROM sqlite_master WHERE type='table'`);
+      const result = await this.db.all<{ name: string }>('SELECT name FROM sqlite_master WHERE type=\'table\'');
       return result.map(a => a.name).filter(a => a.startsWith(`driver_${id}`));
     }
 
@@ -288,26 +288,26 @@ class SQLite3Driver implements DbDriver {
     private db: SQLite3Database;
 
     async init(db: SQLite3Database) {
-      await db.exec(`CREATE TABLE IF NOT EXISTS users (address text primary key, internalBucketAddress text, defaultConnection text)`);
-      await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS user_address_index ON users (address)`);
+      await db.exec('CREATE TABLE IF NOT EXISTS users (address text primary key, internalBucketAddress text, defaultConnection text)');
+      await db.exec('CREATE UNIQUE INDEX IF NOT EXISTS user_address_index ON users (address)');
 
-      await db.exec(`CREATE TABLE IF NOT EXISTS bucket_user_map (bucket text primary key, user text)`);
-      await db.exec(`CREATE INDEX IF NOT EXISTS bucket_user_index ON bucket_user_map (user)`);
+      await db.exec('CREATE TABLE IF NOT EXISTS bucket_user_map (bucket text primary key, user text)');
+      await db.exec('CREATE INDEX IF NOT EXISTS bucket_user_index ON bucket_user_map (user)');
 
-      await db.exec(`CREATE TABLE IF NOT EXISTS conn_user_map (connId text primary key, user text, connData text)`);
-      await db.exec(`CREATE INDEX IF NOT EXISTS conn_user_index ON conn_user_map (user)`);
+      await db.exec('CREATE TABLE IF NOT EXISTS conn_user_map (connId text primary key, user text, connData text)');
+      await db.exec('CREATE INDEX IF NOT EXISTS conn_user_index ON conn_user_map (user)');
 
       this.db = db;
     }
 
-    public async register(address: string, bucketAddress: string = ''): Promise<User> {
+    public async register(address: string, bucketAddress = ''): Promise<User> {
       const count: number = await this.db.get<{
-        'COUNT(*)': number
+        'COUNT(*)': number;
       }>(`SELECT COUNT(*) FROM users WHERE address = "${address}"`).then(a => a ? a['COUNT(*)'] : 0);
       if(count > 1)
         throw new Error('More than one user with address ' + address + '!');
       else if(count < 1)
-        await this.db.exec(`INSERT INTO users (address, internalBucketAddress, defaultConnection)`
+        await this.db.exec('INSERT INTO users (address, internalBucketAddress, defaultConnection)'
           + ` VALUES ("${address}", "${bucketAddress}", "")`);
       return this.get(address);
     }
@@ -321,21 +321,21 @@ class SQLite3Driver implements DbDriver {
     public async get(address: string): Promise<User> {
 
       const user = await this.db.get<{
-        address: string,
-        internalBucketAddress: string,
-        defaultConnection: string,
+        address: string;
+        internalBucketAddress: string;
+        defaultConnection: string;
       }>(`SELECT * FROM users WHERE address = "${address}"`);
 
       if(!user)
         throw new NotFoundError('No user found with address "' + address + '"!');
 
       const conns = await this.db.all<{
-        connId: string,
-        connData: string
+        connId: string;
+        connData: string;
       }>(`SELECT connId, connData FROM conn_user_map WHERE user = "${address}"`);
 
       const buckets = await this.db.all<{
-        bucket: string
+        bucket: string;
       }>(`SELECT bucket FROM bucket_user_map WHERE user = "${address}"`);
 
       return User.deserialize({
@@ -350,7 +350,7 @@ class SQLite3Driver implements DbDriver {
 
     public async getFromBucket(bucketAddress: string): Promise<User> {
       const userAddress = await this.db.get<{
-        user: string
+        user: string;
       }>(`SELECT user FROM bucket_user_map WHERE bucket = "${bucketAddress}"`).then(a => a && a.user);
       if(!userAddress)
         throw new NotFoundError('No user found with bucket address "' + bucketAddress + '"!');
@@ -359,21 +359,21 @@ class SQLite3Driver implements DbDriver {
 
     public async getAll(): Promise<User[]> {
       const users = await this.db.all<{
-        address: string,
-        internalBucketAddress: string,
-        defaultConnection: string
-      }>(`SELECT * FROM users`);
+        address: string;
+        internalBucketAddress: string;
+        defaultConnection: string;
+      }>('SELECT * FROM users');
 
       const conns = await this.db.all<{
-        connId: string,
-        user: string,
-        connData: string
-      }>(`SELECT * FROM conn_user_map`);
+        connId: string;
+        user: string;
+        connData: string;
+      }>('SELECT * FROM conn_user_map');
 
       const buckets = await this.db.all<{
-        bucket: string,
-        user: string
-      }>(`SELECT * FROM bucket_user_map`);
+        bucket: string;
+        user: string;
+      }>('SELECT * FROM bucket_user_map');
 
       return users.map(u => {
         const uconns = conns.filter(c => c.user === u.address);
@@ -396,7 +396,7 @@ class SQLite3Driver implements DbDriver {
 
       // get current buckets
       const cbuckets = await this.db.all<{
-        bucket: string
+        bucket: string;
       }>(`SELECT bucket FROM bucket_user_map WHERE user = "${address}"`).then(v => v ? v.map(a => a.bucket) : []);
 
       // new buckets
@@ -409,8 +409,8 @@ class SQLite3Driver implements DbDriver {
 
       // get current conns
       const cconns = await this.db.all<{
-        connId: string,
-        connData: string
+        connId: string;
+        connData: string;
       }>(`SELECT connId, connData FROM conn_user_map WHERE user = "${address}"`);
       const cconnIds = cconns.map(a => a.connId);
 
@@ -418,7 +418,7 @@ class SQLite3Driver implements DbDriver {
 
       // new conns
       for(const nconn of suserConns.filter(c => !cconnIds.includes(c.connId)))
-        await this.db.run(`INSERT OR REPLACE INTO conn_user_map (connId, user, connData) VALUES`
+        await this.db.run('INSERT OR REPLACE INTO conn_user_map (connId, user, connData) VALUES'
           + ` ("${nconn.connId}", "${address}", $connData)`, { $connData: nconn.connData });
       // modified conns
       for(const mconn of suserConns.filter(c => cconns.find(a => a.connId === c.connId && a.connData !== c.connData)))
@@ -441,16 +441,16 @@ class SQLite3Driver implements DbDriver {
     private db: SQLite3Database;
 
     async init(db: SQLite3Database) {
-      await db.exec(`CREATE TABLE IF NOT EXISTS metadata (key text primary key, connId text, path text,`
-        + ` contentType text, size integer, hash text, lastModified number)`);
-      await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS metadata_key_index ON metadata (key)`);
-      await db.exec(`CREATE INDEX IF NOT EXISTS metadata_connId_index ON metadata (connId)`);
-      await db.exec(`CREATE INDEX IF NOT EXISTS metadata_path_index ON metadata (path)`);
+      await db.exec('CREATE TABLE IF NOT EXISTS metadata (key text primary key, connId text, path text,'
+        + ' contentType text, size integer, hash text, lastModified number)');
+      await db.exec('CREATE UNIQUE INDEX IF NOT EXISTS metadata_key_index ON metadata (key)');
+      await db.exec('CREATE INDEX IF NOT EXISTS metadata_connId_index ON metadata (connId)');
+      await db.exec('CREATE INDEX IF NOT EXISTS metadata_path_index ON metadata (path)');
       this.db = db;
     }
 
     public async getForConnection(connId: string, bucket?: string): Promise<ConnectionMetadataIndex> {
-      const data = await this.db.all<SerializedMetadataIndexEntry>(`SELECT * FROM metadata WHERE`
+      const data = await this.db.all<SerializedMetadataIndexEntry>('SELECT * FROM metadata WHERE'
         + ` connId = "${connId}"` + (bucket ? ` AND path LIKE "${bucket}%"` : ''));
       const ret: ConnectionMetadataIndex = { };
       for(const entry of data) {
@@ -466,7 +466,7 @@ class SQLite3Driver implements DbDriver {
 
     public async getForUser(user: User): Promise<MetadataIndex> {
 
-      let query = `SELECT * FROM metadata WHERE`;
+      let query = 'SELECT * FROM metadata WHERE';
       const startLen = query.length;
 
       for(const connId in user.connections) if(user.connections[connId])
@@ -479,7 +479,7 @@ class SQLite3Driver implements DbDriver {
 
       const data = await this.db.all<SerializedMetadataIndexEntry>(query);
 
-      const oldestLatestModifiedDates: { [path: string]: { oldest: number, latest: number } } = { };
+      const oldestLatestModifiedDates: { [path: string]: { oldest: number; latest: number } } = { };
       const ret: MetadataIndex = { };
       for(const entry of data) {
         if(!ret[entry.path]) {
@@ -507,7 +507,7 @@ class SQLite3Driver implements DbDriver {
     }
 
     public async getForUserExpanded(user: User): Promise<ExpandedMetadataIndex> {
-      let query = `SELECT * FROM metadata WHERE`;
+      let query = 'SELECT * FROM metadata WHERE';
       const startLen = query.length;
 
       for(const connId in user.connections) if(user.connections[connId])
@@ -531,7 +531,7 @@ class SQLite3Driver implements DbDriver {
 
     public async getForBucket(bucket: string): Promise<MetadataIndex> {
       const data = await this.db.all<SerializedMetadataIndexEntry>(`SELECT * FROM metadata WHERE path LIKE "${bucket}%"`);
-      const oldestLatestModifiedDates: { [path: string]: { oldest: number, latest: number } } = { };
+      const oldestLatestModifiedDates: { [path: string]: { oldest: number; latest: number } } = { };
       const ret: MetadataIndex = { };
       for(const entry of data) {
         // new
@@ -590,7 +590,7 @@ class SQLite3Driver implements DbDriver {
     }
 
     public async update(path: string, connId: string, metadata: Metadata): Promise<void> {
-      await this.db.exec(`INSERT OR REPLACE INTO metadata (key, path, connId, contentType, hash, lastModified, size)`
+      await this.db.exec('INSERT OR REPLACE INTO metadata (key, path, connId, contentType, hash, lastModified, size)'
       + ` VALUES ("${path}:${connId}", "${path}", "${connId}", "${metadata.contentType}", "${metadata.hash}",`
       + ` "${metadata.lastModified.getTime()}", "${metadata.size}")`);
     }

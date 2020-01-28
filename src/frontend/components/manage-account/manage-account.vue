@@ -6,7 +6,10 @@
 
   <section class='modal-card-body'>
     <button class='button is-info' @click='gdpr()'>GDPR</button>
-    <button class='button is-danger' @click='deleteAccount()'>Delete Account&nbsp;<b-icon icon='info' title='This will delete your account and indexes, but all data on the non-local drivers will stay there.'></b-icon></button>
+    <button class='button is-danger' @click='deleteAccount()'>
+      Delete Account&nbsp;
+      <b-icon icon='info' title='This will delete your account and indexes, but all data on the non-local drivers will stay there.' />
+    </button>
   </section>
 
   <footer class='modal-card-foot'>

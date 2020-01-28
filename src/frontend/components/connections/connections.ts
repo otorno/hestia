@@ -5,7 +5,7 @@ import { HestiaApi } from 'common/api/api';
 import { AxiosError } from 'axios';
 
 export default (Vue as VVue).component('hestia-connections', {
-  props: { token: { type: String } },
+  props: { token: { type: String, default: '' } },
   data() {
     return {
       connections: [] as {
@@ -17,8 +17,8 @@ export default (Vue as VVue).component('hestia-connections', {
         noDriver?: boolean;
         rootOnly?: boolean;
         limitedSpace?: boolean;
-        infoRaw?: { spaceUsed: number, spaceAvailable?: number };
-        info?: { spaceUsed: string, spaceAvailable?: string };
+        infoRaw?: { spaceUsed: number; spaceAvailable?: number };
+        info?: { spaceUsed: string; spaceAvailable?: string };
       }[],
       drivers: [] as {
         id: string;
@@ -42,7 +42,7 @@ export default (Vue as VVue).component('hestia-connections', {
       return this.api.getDriverIconUrl(driverId);
       // return location.origin + '/api/v1/drivers/' + driverId + '/icon';
     },
-    getDriverDisabled(driver: { multiUser: boolean, id: string }) {
+    getDriverDisabled(driver: { multiUser: boolean; id: string }) {
       return !driver.multiUser && this.connections.find(a => a.driver === driver.id);
     },
     handleError(e: AxiosError, action: string) {

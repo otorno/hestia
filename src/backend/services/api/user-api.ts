@@ -22,7 +22,7 @@ export default function createUserApi(logger: Logger) {
 
   router.post('/login', cors({ origin: meta.origin() }), wrapAsync(async (req, res, next) => {
 
-    let addresses: { signerAddress: string, issuerAddress: string };
+    let addresses: { signerAddress: string; issuerAddress: string };
 
     try {
       // ignore gaia mismatch because it's from the same origin "frontend app"
@@ -55,7 +55,7 @@ export default function createUserApi(logger: Logger) {
 
   router.post('/register', wrapAsync(async (req, res, next) => {
 
-    let addresses: { signerAddress: string, issuerAddress: string };
+    let addresses: { signerAddress: string; issuerAddress: string };
 
     try {
       // require params because this is public facing
@@ -112,7 +112,7 @@ export default function createUserApi(logger: Logger) {
       else
         index = await db.metadata.getForUser(req.user);
       if(trueArray.includes(req.query.hash))
-          res.send(hashBuffer(Buffer.from(JSON.stringify(index), 'utf8')));
+        res.send(hashBuffer(Buffer.from(JSON.stringify(index), 'utf8')));
       else
         res.json(index);
     }),

@@ -24,22 +24,22 @@ interface UserDropboxDriverConfig {
 class JobQueue {
 
   queue: { [key: string]: {
-    path: string,
-    buffer: Buffer,
-    contentType: string,
-    contentLength: number,
-    retries?: number
-  }[] } = { };
+    path: string;
+    buffer: Buffer;
+    contentType: string;
+    contentLength: number;
+    retries?: number;
+  }[]; } = { };
   current: { [key: string]: {
-    jobId: string,
+    jobId: string;
     jobs: {
-      path: string,
-      buffer: Buffer,
-      contentType: string,
-      contentLength: number,
-      retries?: number
-    }[]
-  } } = { };
+      path: string;
+      buffer: Buffer;
+      contentType: string;
+      contentLength: number;
+      retries?: number;
+    }[];
+  }; } = { };
 
   private _onJobComplete = new Subject<string>();
   public getOnJobComplete(p: string) { return this._onJobComplete.pipe(find(a => a.toLowerCase() === p.toLowerCase())); }
@@ -50,7 +50,7 @@ class JobQueue {
     return new Dropbox({ accessToken: token, fetch });
   }
 
-  async add(token: string, job: { path: string, stream: ReadableStream, contentType: string, contentLength: number }) {
+  async add(token: string, job: { path: string; stream: ReadableStream; contentType: string; contentLength: number }) {
     if((this.queue[token] && this.queue[token].find(a => a.path === job.path)) ||
       (this.current[token] && this.current[token].jobs.find(a => a.path === job.path)))
       throw new NotAllowedError('Job is already queued!');
@@ -65,7 +65,7 @@ class JobQueue {
     return this.getOnJobComplete(job.path).toPromise();
   }
 
-/*
+  /*
 see:
 https://github.com/SynchroLabs/CloudStashWeb/blob/f828bec5d81e3dd5b6784f359cf4bb75d82eb89a/public/script.js#L186-L376
 https://github.com/dropbox/dropbox-sdk-js/issues/120
@@ -96,7 +96,7 @@ https://github.com/dropbox/dropbox-sdk-js/issues/80#issuecomment-283189888
 
         if(failedJobs.length) {
           if(!this.queue[key])
-              this.queue[key] = [];
+            this.queue[key] = [];
           for(const job of failedJobs) if(!job.retries || job.retries < 3) {
             job.retries = (job.retries || 0) + 1;
             this.queue[key].unshift(job);
@@ -110,13 +110,13 @@ https://github.com/dropbox/dropbox-sdk-js/issues/80#issuecomment-283189888
 
     // snapshot! (we don't need perfect copies -- just key/array dupes)
     const queueSnapshot: { [key: string]: {
-      path: string,
-      buffer: Buffer,
-      contentType: string,
-      contentLength: number
-    }[] } = Object.assign({}, ...Object.entries(this.queue)
-                                        .filter(([k]) => !this.current[k])
-                                        .map(([k, v]) => ({ [k]: v.splice(0, 10) })));
+      path: string;
+      buffer: Buffer;
+      contentType: string;
+      contentLength: number;
+    }[]; } = Object.assign({}, ...Object.entries(this.queue)
+      .filter(([k]) => !this.current[k])
+      .map(([k, v]) => ({ [k]: v.splice(0, 10) })));
 
     for(const key in queueSnapshot) if(queueSnapshot[key] && queueSnapshot[key].length > 0) {
       const dbx = this.dbx(key);
@@ -125,9 +125,7 @@ https://github.com/dropbox/dropbox-sdk-js/issues/80#issuecomment-283189888
       for(let i = 0; i < queueSnapshot[key].length; i++) {
         const job = queueSnapshot[key][i];
 
-        let sret: DropboxTypes.files.UploadSessionStartResult;
-
-        sret = await dbx.filesUploadSessionStart({ contents: job.buffer, close: true });
+        const sret = await dbx.filesUploadSessionStart({ contents: job.buffer, close: true });
 
         entries.push({
           cursor: { session_id: sret.session_id, offset: job.contentLength },
@@ -188,7 +186,7 @@ class UserDropboxDriver implements Driver {
     storageTopLevel: string;
     user: User;
   }): Promise<{ stream: ReadableStream } | { redirectUrl: string }> {
-    this.logger.info(`Read: ` + urljoin(options.storageTopLevel, options.path));
+    this.logger.info('Read: ' + urljoin(options.storageTopLevel, options.path));
     const p = urljoin(options.storageTopLevel, options.path);
 
     const dbx = this.dbx(options.user);
@@ -228,7 +226,7 @@ class UserDropboxDriver implements Driver {
     stream: ReadableStream;
     user: User;
   }): Promise<void> {
-    this.logger.info(`Write: ` + urljoin(options.storageTopLevel, options.path));
+    this.logger.info('Write: ' + urljoin(options.storageTopLevel, options.path));
     const p = urljoin(options.storageTopLevel, options.path);
     const dbx = this.dbx(options.user);
     let filesUploadErr = false;
@@ -275,7 +273,7 @@ class UserDropboxDriver implements Driver {
     storageTopLevel: string;
     user: User;
   }): Promise<void> {
-    this.logger.info(`Delete: ` + urljoin(options.storageTopLevel, options.path));
+    this.logger.info('Delete: ' + urljoin(options.storageTopLevel, options.path));
     const p = urljoin(options.storageTopLevel, options.path);
 
     await this.table.delete(options.user.connectionId + ':' + p);
@@ -283,9 +281,9 @@ class UserDropboxDriver implements Driver {
   }
 
   public async listFiles(prefix: string, page: number, state: boolean, user: User): Promise<any> {
-    this.logger.info(`List files: ` + (prefix || '(all) ') + (page ? 'p' + page : '') + (state ? 'w/ state' : ''));
+    this.logger.info('List files: ' + (prefix || '(all) ') + (page ? 'p' + page : '') + (state ? 'w/ state' : ''));
 
-    const bigList: { name: string, contentLength: number, lastModifiedDate: number }[] = [];
+    const bigList: { name: string; contentLength: number; lastModifiedDate: number }[] = [];
 
     const dbx = this.dbx(user);
     const rets: DropboxTypes.files.ListFolderResult[] = [];
@@ -316,7 +314,7 @@ class UserDropboxDriver implements Driver {
         if(ff)
           ffolders[i] = ff.name;
         else
-          this.logger.error(`Error finding folders name: ` + ffolders[i]);
+          this.logger.error('Error finding folders name: ' + ffolders[i]);
       }
       const fpath = ffolders.join('/') + file.name;
       bigList.push({ name: fpath, contentLength: file.size, lastModifiedDate: new Date(file.server_modified).getTime() });
@@ -379,12 +377,12 @@ class UserDropboxDriver implements Driver {
   }
 
   async register(user: User); // ignore
-  async register(user: User, redirectUrl: string, req: { headers: { [key: string]: string }, query: any }): Promise<{
-    redirect: { url: string }
+  async register(user: User, redirectUrl: string, req: { headers: { [key: string]: string }; query: any }): Promise<{
+    redirect: { url: string };
   } | {
-    finish: { address: string, userdata: { uid: string, token: string } };
+    finish: { address: string; userdata: { uid: string; token: string } };
   }>;
-  async register(user: User, redirectUrl?: string, req?: { headers: { [key: string]: string }, query: any }) {
+  async register(user: User, redirectUrl?: string, req?: { headers: { [key: string]: string }; query: any }) {
 
     if(!redirectUrl || !req)
       throw new Error('Cannot be used as a hub-backend (must be user-backend)!');
@@ -419,7 +417,7 @@ class UserDropboxDriver implements Driver {
     throw new MalformedError('Not a redirect nor a properly formatted request!');
   }
 
-  async postRegisterCheck(user: User, id: string, userData: { uid: string, token: string }): Promise<void> {
+  async postRegisterCheck(user: User, id: string, userData: { uid: string; token: string }): Promise<void> {
     if(Object.values(user.connections).filter(a => a.config.uid === userData.uid).length > 1)
       throw new Error('Cannot register two entries with the same account!');
 

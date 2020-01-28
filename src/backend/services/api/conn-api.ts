@@ -40,35 +40,35 @@ export default function createConnectionApi(logger: Logger) {
     parseAddressPathRegex, ensureStream, validateUser(),
     wrapAsync(async (req, res) => {
 
-    await connections.store(req.params.id, req.user, req.params.address, req.params.path, {
-      contentType: req.headers['content-type'],
-      contentLength: Number(req.headers['content-length']) || 0,
-      stream: (req as any).stream || req
-    });
+      await connections.store(req.params.id, req.user, req.params.address, req.params.path, {
+        contentType: req.headers['content-type'],
+        contentLength: Number(req.headers['content-length']) || 0,
+        stream: (req as any).stream || req
+      });
 
-    res.status(200).json({
-      publicURL: `${meta.origin()}/gaia/read/${req.params.address}/${req.params.path}`,
-    });
-  }), handleError('gaia store'));
+      res.status(200).json({
+        publicURL: `${meta.origin()}/gaia/read/${req.params.address}/${req.params.path}`,
+      });
+    }), handleError('gaia store'));
 
   // READ
   router.get(new RegExp(`/read/${ADDRESS_PATH_REGEX}`),
-  parseAddressPathRegex, validateUser(),
-  wrapAsync(async (req, res) => {
-    const read = await connections.read(req.params.id, req.user, req.params.address, req.params.path);
-    if('stream' in read)
-      read.stream.pipe(res.status(202).contentType(read.contentType));
-    else
-      res.redirect(read.redirectUrl);
-  }), handleError('gaia read'));
+    parseAddressPathRegex, validateUser(),
+    wrapAsync(async (req, res) => {
+      const read = await connections.read(req.params.id, req.user, req.params.address, req.params.path);
+      if('stream' in read)
+        read.stream.pipe(res.status(202).contentType(read.contentType));
+      else
+        res.redirect(read.redirectUrl);
+    }), handleError('gaia read'));
 
   // DELETE
   router.delete(new RegExp(`/delete/${ADDRESS_PATH_REGEX}`), json(),
     parseAddressPathRegex, validateUser(),
     wrapAsync(async (req, res) => {
-    await connections.delete(req.params.id, req.user, req.params.address, req.params.path);
-    res.sendStatus(202);
-  }), handleError('gaia delete'));
+      await connections.delete(req.params.id, req.user, req.params.address, req.params.path);
+      res.sendStatus(202);
+    }), handleError('gaia delete'));
 
   // LIST FILES
   router.post(new RegExp('/list-files/' + ADDRESS_REGEX + '?'), json(), validateUser(), wrapAsync(async (req, res) => {

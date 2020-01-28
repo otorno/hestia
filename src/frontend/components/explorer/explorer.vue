@@ -3,93 +3,178 @@
   <div id='header'>
     <div id='progress' class='has-background-primary' :style='{ width: (progress * 100).toFixed(2) + "%" }'></div>
     <div id='path'>
-      <button class='button is-small is-white' style='margin-right: 0.5rem;' :disabled='splitDir.length <= 1' @click='goto(splitDir.length - 2)'><b-icon icon='folder-upload' style='color: #FFD54F'></b-icon></button>
+      <button
+        class='button is-small is-white'
+        style='margin-right: 0.5rem;'
+        :disabled='splitDir.length <= 1'
+        @click='goto(splitDir.length - 2)'
+      >
+        <b-icon icon='folder-upload' style='color: #FFD54F' />
+      </button>
       <template v-for='(d, i) in splitDir'>
-        <a :key='"a-"+i' class='tag' @click='goto(i)' :title='d'>
-          <span>{{nameAnnotations[d] || d}}</span>
+        <a :key='"a-"+i' class='tag' :title='d' @click='goto(i)'>
+          <span>{{ nameAnnotations[d] || d }}</span>
         </a>
-        <span :key='"s-"+i' v-if='i + 1 < splitDir.length'><b-icon icon='chevron-right'></b-icon></span>
+        <span v-if='i + 1 < splitDir.length' :key='"s-"+i'><b-icon icon='chevron-right' /></span>
       </template>
     </div>
     <div id='buttons'>
       <div v-show='status' id='hestia-loading-small'></div>
-      <button class='button is-small is-white' :disabled='working' @click='refresh()' title='Refresh'><b-icon icon='refresh'></b-icon></button>
-      <button class='button is-small is-white' :disabled='!anyActive || working' @click='downloadSelected()' title='Download'><b-icon icon='download'></b-icon></button>
-      <a class='button is-small is-white' :href='"data:application/json," + JSON.stringify(migrationIndex)' target='_blank' rel='noopener noreferrer' title='Migration Index'><b-icon icon='script-text'></b-icon></a>
-      <button class='button is-small is-white' :disabled='working' @click='importMigrationIndex()' title='Import Migration Index'><b-icon icon='import'></b-icon></button>
+      <button class='button is-small is-white' :disabled='working' title='Refresh' @click='refresh()'>
+        <b-icon icon='refresh' />
+      </button>
+      <button class='button is-small is-white' :disabled='!anyActive || working' title='Download' @click='downloadSelected()'>
+        <b-icon icon='download' />
+      </button>
+      <a
+        class='button is-small is-white'
+        title='Migration Index'
+        :href='"data:application/json," + JSON.stringify(migrationIndex)'
+        target='_blank'
+        rel='noopener noreferrer'
+      >
+        <b-icon icon='script-text' />
+      </a>
+      <button class='button is-small is-white' :disabled='working' title='Import Migration Index' @click='importMigrationIndex()'>
+        <b-icon icon='import' />
+      </button>
     </div>
   </div>
   <div id='explorer-header' class='exp-grid'>
-    <button class='button is-white' @click='sort("name")'><span>Name</span><b-icon v-show='sortByName === "name"' :icon='sortByDir ? "chevron-up" : "chevron-down"'></b-icon></button>
-    <button class='button is-white' @click='sort("conn")'><span>Connections</span><b-icon v-show='sortByName === "conn"' :icon='sortByDir ? "chevron-up" : "chevron-down"'></b-icon></button>
-    <button class='button is-white' @click='sort("size")'><span>Size</span><b-icon v-show='sortByName === "size"' :icon='sortByDir ? "chevron-up" : "chevron-down"'></b-icon></button>
-    <button class='button is-white' @click='sort("mod")'><span>Last Modified</span><b-icon v-show='sortByName === "mod"' :icon='sortByDir ? "chevron-up" : "chevron-down"'></b-icon></button>
+    <button class='button is-white' @click='sort("name")'>
+      <span>Name</span>
+      <b-icon v-show='sortByName === "name"' :icon='sortByDir ? "chevron-up" : "chevron-down"' />
+    </button>
+    <button class='button is-white' @click='sort("conn")'>
+      <span>Connections</span>
+      <b-icon v-show='sortByName === "conn"' :icon='sortByDir ? "chevron-up" : "chevron-down"' />
+    </button>
+    <button class='button is-white' @click='sort("size")'>
+      <span>Size</span>
+      <b-icon v-show='sortByName === "size"' :icon='sortByDir ? "chevron-up" : "chevron-down"' />
+    </button>
+    <button class='button is-white' @click='sort("mod")'>
+      <span>Last Modified</span>
+      <b-icon v-show='sortByName === "mod"' :icon='sortByDir ? "chevron-up" : "chevron-down"' />
+    </button>
     <b-dropdown aria-role='list' position='is-bottom-left'>
-          <button class='dot-button' slot='trigger'>
-              <b-icon icon='dots-horizontal'></b-icon>
-          </button>
-          <b-dropdown-item aria-role='list-item' custom>
-            <b-checkbox v-model='useFamiliar'>Use Familiar Names</b-checkbox>
-          </b-dropdown-item>
-          <b-dropdown-item aria-role='list-item' :disabled='dirInfo.oldConns.length === 0' @click='syncDir()'>Sync</b-dropdown-item>
-          <b-dropdown-item aria-role='list-item' :disabled='dirInfo.name === "root"' @click='manageConnections()'>Manage Connections</b-dropdown-item>
-          <b-dropdown-item aria-role='list-item' @click='downloadDir(dir)'>Download</b-dropdown-item>
-        </b-dropdown>
+      <button slot='trigger' class='dot-button'>
+        <b-icon icon='dots-horizontal' />
+      </button>
+      <b-dropdown-item aria-role='list-item' custom>
+        <b-checkbox v-model='useFamiliar'>Use Familiar Names</b-checkbox>
+      </b-dropdown-item>
+      <b-dropdown-item aria-role='list-item' :disabled='dirInfo.oldConns.length === 0' @click='syncDir()'>Sync</b-dropdown-item>
+      <b-dropdown-item aria-role='list-item' :disabled='dirInfo.name === "root"' @click='manageConnections()'>
+        Manage Connections
+      </b-dropdown-item>
+      <b-dropdown-item aria-role='list-item' @click='downloadDir(dir)'>Download</b-dropdown-item>
+    </b-dropdown>
   </div>
   <div id='explorer' ref='explorer'>
-    <div id='background' @mousedown='drawStart($event)'><h5 class='subtitle is-5' v-if='!index || !index[dir] || (index[dir].folders.length === 0 && index[dir].files.length === 0)'>Nothing here...</h5></div>
+    <div id='background' @mousedown='drawStart($event)'>
+      <h5 v-if='!index || !index[dir] || (index[dir].folders.length === 0 && index[dir].files.length === 0)' class='subtitle is-5'>
+        Nothing here...
+      </h5>
+    </div>
     <template v-if='index && index[dir]'>
-      <router-link v-for='folder of sortedFolders' :key='"/" + folder.name' :to='getPath(folder.name)'
-      :class='{ active: active["/" + folder.name], "last-active": lastActive === "/" + folder.name }'
-      class='folder exp-grid' :id='"m-/" + folder.name'
-      :event='""' @click.native.prevent.stop='clickItem($event, "/" + folder.name)'>
+      <router-link
+        v-for='folder of sortedFolders'
+        :id='"m-/" + folder.name'
+        :key='"/" + folder.name'
+        :to='getPath(folder.name)'
+        class='folder exp-grid'
+        :class='{ active: active["/" + folder.name], "last-active": lastActive === "/" + folder.name }'
+        :event='""'
+        @click.native.prevent.stop='clickItem($event, "/" + folder.name)'
+      >
         <div>
-          <b-icon icon='folder' style='color: #FFD54F' :title='folder.itemCount + " items"'></b-icon>
-          <span>{{useFamiliar && nameAnnotations[folder.name] ? '&ldquo;' + nameAnnotations[folder.name] + '&rdquo;' : folder.name}}</span>
+          <b-icon icon='folder' style='color: #FFD54F' :title='folder.itemCount + " items"' />
+          <span>{{ useFamiliar && nameAnnotations[folder.name] ? `&ldquo;${nameAnnotations[folder.name]}&rdquo;` : folder.name }}</span>
         </div>
         <div class='conn-group'>
-          <span v-for='connId of folder.conns' :key='connId' :title='getConn(connId).name'><img style='max-height: 100%' :src='getConn(connId).icon' /></span>
-          <span style='opacity: 0.5;' v-for='connId of folder.oldConns' :key='connId' :title='getConn(connId).name + " (outdated)"'><img style='max-height: 100%' :src='getConn(connId).icon' /></span>
+          <span v-for='connId of folder.conns' :key='connId' :title='getConn(connId).name'>
+            <img style='max-height: 100%' :src='getConn(connId).icon'>
+          </span>
+          <span v-for='connId of folder.oldConns' :key='connId' :title='getConn(connId).name + " (outdated)"' style='opacity: 0.5;'>
+            <img style='max-height: 100%' :src='getConn(connId).icon'>
+          </span>
         </div>
-        <span>{{folder.size}}</span>
-        <span>{{folder.lastModified}}</span>
+        <span>{{ folder.size }}</span>
+        <span>{{ folder.lastModified }}</span>
         <b-dropdown aria-role='list' position='is-bottom-left'>
-          <button class='dot-button' slot='trigger'>
-              <b-icon icon='dots-horizontal'></b-icon>
+          <button slot='trigger' class='dot-button'>
+            <b-icon icon='dots-horizontal' />
           </button>
           <b-dropdown-item aria-role='list-item' :disabled='folder.oldConns.length === 0' @click='sync(folder.name)'>Sync</b-dropdown-item>
-          <b-dropdown-item aria-role='list-item' :disabled='folder.name === userdata.identityAddress' :title='folder.name === userdata.identityAddress ? "Cannot set buckets of root address" : ""' @click='manageConnections(folder)'>Manage Connections</b-dropdown-item>
+          <b-dropdown-item
+            aria-role='list-item'
+            :disabled='folder.name === userdata.identityAddress'
+            :title='folder.name === userdata.identityAddress ? "Cannot set buckets of root address" : ""'
+            @click='manageConnections(folder)'
+          >
+            Manage Connections
+          </b-dropdown-item>
           <b-dropdown-item aria-role='list-item' @click='downloadDir(dir + folder.name + "/")'>Download</b-dropdown-item>
         </b-dropdown>
       </router-link>
-      <a v-for='file of sortedFiles' :key='file.name' :href='getLink(file.name)'
-      :class='{ active: active[file.name], "last-active": lastActive === file.name }'
-      :id='"m-"+file.name' class='file exp-grid' @click.prevent.stop='clickItem($event, file.name)'>
+      <a
+        v-for='file of sortedFiles'
+        :id='"m-"+file.name'
+        :key='file.name'
+        :href='getLink(file.name)'
+        :class='{ active: active[file.name], "last-active": lastActive === file.name }'
+        class='file exp-grid'
+        @click.prevent.stop='clickItem($event, file.name)'
+      >
         <div>
-          <b-icon :icon='file.fileIcon' :style='{ color: file.fileIconColor }' :title='file.contentType'></b-icon>
-          <span>{{file.name}}</span>
+          <b-icon :icon='file.fileIcon' :style='{ color: file.fileIconColor }' :title='file.contentType' />
+          <span>{{ file.name }}</span>
         </div>
         <div class='conn-group'>
-          <span v-for='connId of file.conns' :key='connId' :title='getConn(connId).name'><img style='max-height: 100%' :src='getConn(connId).icon' /></span>
-          <span style='opacity: 0.5;' v-for='connId of file.oldConns' :key='connId' :title='getConn(connId).name + " (outdated)"'><img style='max-height: 100%' :src='getConn(connId).icon' /></span>
+          <span v-for='connId of file.conns' :key='connId' :title='getConn(connId).name'>
+            <img style='max-height: 100%' :src='getConn(connId).icon'>
+          </span>
+          <span v-for='connId of file.oldConns' :key='connId' :title='getConn(connId).name + " (outdated)"' style='opacity: 0.5;'>
+            <img style='max-height: 100%' :src='getConn(connId).icon'>
+          </span>
         </div>
-        <span>{{file.size}}</span>
-        <span>{{file.lastModified}}</span>
+        <span>{{ file.size }}</span>
+        <span>{{ file.lastModified }}</span>
         <b-dropdown aria-role='list' position='is-bottom-left'>
-          <button class='dot-button' slot='trigger'>
-              <b-icon icon='dots-horizontal'></b-icon>
+          <button slot='trigger' class='dot-button'>
+            <b-icon icon='dots-horizontal' />
           </button>
           <b-dropdown-item aria-role='list-item' :disabled='file.oldConns.length === 0' @click='sync(file.name)'>Sync</b-dropdown-item>
-          <b-dropdown-item aria-role='list-item' :disabled='dirInfo.name === "root"' @click='manageConnections()'>Manage Connections</b-dropdown-item>
+          <b-dropdown-item aria-role='list-item' :disabled='dirInfo.name === "root"' @click='manageConnections()'>
+            Manage Connections
+          </b-dropdown-item>
           <b-dropdown-item aria-role='list-item' @click='openFile(file.name)'>Open</b-dropdown-item>
         </b-dropdown>
       </a>
     </template>
     <div v-show='drawing' id='selectbox' :style='drawPos'></div>
-    <!-- div v-show='drawing' style='position: fixed; border: 2px solid red;' :style='{ top: drawPoints.y1 + "px", left: drawPoints.x1 + "px" }'></div>
-    <div v-show='drawing' style='position: fixed; border: 2px solid green;' :style='{ top: drawPoints.y1 + "px", left: drawPoints.x2 + "px" }'></div>
-    <div v-show='drawing' style='position: fixed; border: 2px solid blue;' :style='{ top: drawPoints.y2 + "px", left: drawPoints.x1 + "px" }'></div>
-    <div v-show='drawing' style='position: fixed; border: 2px solid yellow;' :style='{ top: drawPoints.y2 + "px", left: drawPoints.x2 + "px" }'></div -->
+    <!--
+    div
+      v-show='drawing'
+      style='position: fixed; border: 2px solid red;'
+      :style='{ top: drawPoints.y1 + "px", left: drawPoints.x1 + "px" }'
+    ></div>
+    <div
+      v-show='drawing'
+      style='position: fixed; border: 2px solid green;'
+      :style='{ top: drawPoints.y1 + "px", left: drawPoints.x2 + "px" }'
+    ></div>
+    <div
+      v-show='drawing'
+      style='position: fixed; border: 2px solid blue;'
+      :style='{ top: drawPoints.y2 + "px", left: drawPoints.x1 + "px" }'
+    ></div>
+    <div
+      v-show='drawing'
+      style='position: fixed; border: 2px solid yellow;'
+      :style='{ top: drawPoints.y2 + "px", left: drawPoints.x2 + "px" }'
+    ></div -->
   </div>
 </div>
 </template>

@@ -25,7 +25,7 @@ export class PluginApi implements PluginApiInterface, InternalPluginApiInterface
   }
 
   meta = Object.freeze({
-    plugins(): { id: string, name: string }[] {
+    plugins(): { id: string; name: string }[] {
       return meta.plugins();
     },
     async drivers(userAddress?: string) {
@@ -50,14 +50,14 @@ export class PluginApi implements PluginApiInterface, InternalPluginApiInterface
       return gaia.read(address, path);
     },
     async store(address: string, path: string,
-      data: { contentType: string, contentLength: number, stream: Readable }, userAddress?: string): Promise<Error[]> {
+      data: { contentType: string; contentLength: number; stream: Readable }, userAddress?: string): Promise<Error[]> {
       const user = userAddress ? await db.users.get(userAddress) : null;
       return gaia.store(address, path, data, user);
     },
     delete(address: string, path: string): Promise<Error[]> {
       return gaia.delete(address, path);
     },
-    async listFiles<State extends boolean>(address: string, options?: { page?: number, state?: State }, userAddress?: string) {
+    async listFiles<State extends boolean>(address: string, options?: { page?: number; state?: State }, userAddress?: string) {
       let user: User;
       if(userAddress)
         user = await db.users.get(userAddress);
@@ -124,7 +124,7 @@ export class PluginApi implements PluginApiInterface, InternalPluginApiInterface
       return connections.read(id, user, address, path);
     },
     async store(id: string, userAddress: string, address: string, path: string,
-      data: { contentType: string, contentLength: number, stream: Readable }): Promise<void> {
+      data: { contentType: string; contentLength: number; stream: Readable }): Promise<void> {
 
       const user = await db.users.get(userAddress);
       if(!user)

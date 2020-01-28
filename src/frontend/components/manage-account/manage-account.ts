@@ -3,7 +3,7 @@ import { VVue } from 'frontend/vvue';
 import { HestiaApi } from 'common/api/api';
 
 export default (Vue as VVue).component('hestia-manage-account', {
-  props: { token: { type: String } },
+  props: { token: { type: String, default: '' } },
   data() {
     return {
       index: '',

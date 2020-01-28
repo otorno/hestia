@@ -24,7 +24,7 @@ class AppDBPlugin implements Plugin {
     this.id = id;
     this.config = config = Object.assign({ }, config);
     this.api = api;
-    this.logger = getLogger(`plugins.` + this.id);
+    this.logger = getLogger('plugins.' + this.id);
 
     const authKey = function(req: Request, res: Response, next: NextFunction) {
       if(!req.query.authKey || req.query.authKey !== config.app_key)

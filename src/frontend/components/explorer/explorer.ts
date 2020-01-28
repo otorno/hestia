@@ -54,7 +54,7 @@ export default (Vue as VVue).component('hestia-explorer', {
       dirInfo: rootInfo,
 
       bigList: [] as string[],
-      index: { } as { [path: string]: { files: EntryInfo[], folders: EntryInfo[] } },
+      index: { } as { [path: string]: { files: EntryInfo[]; folders: EntryInfo[] } },
       indexHash: '',
       rootInfo,
 
@@ -78,9 +78,9 @@ export default (Vue as VVue).component('hestia-explorer', {
       },
 
       nameAnnotations: { } as  { [key: string]: string },
-      connections: { } as { [id: string]: { icon: string, name: string, buckets: string[] } },
+      connections: { } as { [id: string]: { icon: string; name: string; buckets: string[] } },
       connString: '',
-      apps: [] as { name: string, website: string, address: string }[],
+      apps: [] as { name: string; website: string; address: string }[],
     };
   },
   computed: {
@@ -104,7 +104,7 @@ export default (Vue as VVue).component('hestia-explorer', {
     userdata(): UserData {
       return this.loggedIn ? this.$store.state.sessionData.userData : null;
     },
-    migrationIndex(): { url_prefix: string, entries: string[] } {
+    migrationIndex(): { url_prefix: string; entries: string[] } {
       return { url_prefix: location.origin + '/gaia/read/', entries: this.bigList };
     },
 
@@ -195,7 +195,7 @@ export default (Vue as VVue).component('hestia-explorer', {
     getConn(connId: string) {
       return this.connections[connId] || { icon: '', name: '{null}', buckets: [] };
     },
-    getFileIcon(contentType: string): { fileIcon: string, fileIconColor: string } {
+    getFileIcon(contentType: string): { fileIcon: string; fileIconColor: string } {
       if(contentType.startsWith('application/json'))
         return { fileIcon: 'file-xml', fileIconColor: '#f44336' };
       if(contentType.startsWith('application/octet-stream'))
@@ -254,11 +254,11 @@ export default (Vue as VVue).component('hestia-explorer', {
 
     },
     async listFiles(connections?: { // just to not call /api/v1/drivers twice
-        id: string;
-        name: string;
-        driver: string;
-        default?: boolean;
-        buckets: string[];
+      id: string;
+      name: string;
+      driver: string;
+      default?: boolean;
+      buckets: string[];
     }[]) { // make index
       this.workingOn = 'Fetching & indexing files...';
 
@@ -274,16 +274,16 @@ export default (Vue as VVue).component('hestia-explorer', {
       const entries = (await this.api.user.listFiles({ global: true })).data;
       this.bigList = Object.keys(entries);
 
-      const index: { [name: string]: { files: EntryInfo[], folders: EntryInfo[] } } = { };
+      const index: { [name: string]: { files: EntryInfo[]; folders: EntryInfo[] } } = { };
       if(!this.index || Object.keys(this.index).length === 0)
         this.index = index;
 
       // let currentPath = 0;
       // const maxPath = Object.keys(entries).length;
 
-      const oldestLatestModifiedDates: { [path: string]: { oldest: number, latest: number } } = { };
+      const oldestLatestModifiedDates: { [path: string]: { oldest: number; latest: number } } = { };
       for(const path in entries) if(entries[path]) {
-        /*currentPath++;
+        /* currentPath++;
         this.workingOn = 'Indexing files (' + currentPath + '/' + maxPath + ')...';
         this.progress = currentPath / maxPath;*/
         const allConnIds = Object.keys(entries[path]);
@@ -382,7 +382,7 @@ export default (Vue as VVue).component('hestia-explorer', {
       paths = paths.sort((a, b) => a.length === b.length ? a.localeCompare(b) : a.length - b.length);
       // currentPath = 0;
       for(const path of paths) {
-        /*currentPath++;
+        /* currentPath++;
         this.workingOn = 'Filling folder information (' + currentPath + '/' + paths.length + ')...';
         this.progress = currentPath / paths.length;*/
         let totalSize = 0;
@@ -518,8 +518,12 @@ export default (Vue as VVue).component('hestia-explorer', {
         this.lastActiveTime = 0;
       } else {
         this.active = { [item]: true };
-        if(Date.now() - this.lastActiveTime < 333) // 1/3 of a sec
-          item.startsWith('/') ? this.openFolder(item.slice(1)) : this.openFile(item);
+        if(Date.now() - this.lastActiveTime < 333) { // 1/3 of a sec
+          if(item.startsWith('/'))
+            this.openFolder(item.slice(1));
+          else
+            this.openFile(item);
+        }
         this.lastActiveTime = Date.now();
       }
 
@@ -531,7 +535,7 @@ export default (Vue as VVue).component('hestia-explorer', {
       else
         this.dir = '/' + folder + '/';
     },
-    async openFile(file: string, options?: { open?: boolean, rawPath?: boolean }) {
+    async openFile(file: string, options?: { open?: boolean; rawPath?: boolean }) {
       options = Object.assign({ open: true, rawPath: false }, options);
       const path = options.rawPath ? file : (this.dir.length > 1 ? this.dir.slice(1) : '') + file;
       if(options.open) {
@@ -583,7 +587,7 @@ export default (Vue as VVue).component('hestia-explorer', {
       else {
         const idx = path.lastIndexOf('/', path.length - 2);
         const dirName = path.slice(idx + 1, -1);
-          name = (this.useFamiliar && this.nameAnnotations[dirName]) || dirName;
+        name = (this.useFamiliar && this.nameAnnotations[dirName]) || dirName;
       }
 
       return this.download(this.bigList.filter(a => a.startsWith(path)), name);
@@ -621,8 +625,8 @@ export default (Vue as VVue).component('hestia-explorer', {
       this.drawPos = { top: event.y + 'px', left: event.x + 'px', height: 0 + 'px', width: 0 + 'px' };
     },
     boxInside(
-      a: { x1: number, y1: number, x2: number, y2: number },
-      b: { x1: number, y1: number, x2: number, y2: number }) {
+      a: { x1: number; y1: number; x2: number; y2: number },
+      b: { x1: number; y1: number; x2: number; y2: number }) {
       return !(a.x1 > b.x2 ||
               a.x2 < b.x1 ||
               a.y1 > b.y2 ||
@@ -711,7 +715,7 @@ export default (Vue as VVue).component('hestia-explorer', {
           this.workingOn = '';
           return;
         }
-        const index: { url_prefix: string, entries: string[] } = JSON.parse(jsonIndex);
+        const index: { url_prefix: string; entries: string[] } = JSON.parse(jsonIndex);
         if(!index.url_prefix || !index.entries)
           throw new Error('Malformed index: must have a url_prefix and an entries array.');
 
@@ -874,7 +878,7 @@ export default (Vue as VVue).component('hestia-explorer', {
 
       if(this.dir === '/') {
         if(!this.rootInfo.oldConns.length)
-            return;
+          return;
         const index = this.index['/'];
         if(!index)
           return;
@@ -905,7 +909,7 @@ export default (Vue as VVue).component('hestia-explorer', {
         return this.sync(this.dirInfo.name, dir);
       }
     },
-    async sync(itemName: string, dir?: string, refresh: boolean = true) {
+    async sync(itemName: string, dir?: string, refresh = true) {
       if(this.working)
         return;
       this.working = true;

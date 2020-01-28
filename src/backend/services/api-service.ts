@@ -73,14 +73,14 @@ class Api {
 
     this.router.get('/manifest.json', (_, res) => {
       res.json({
-          name: 'Hestia @ ' + this.serverName,
-          start_url: this.serverName,
-          description: 'A Hestia node',
-          icons: [{
-            src: `${meta.origin()}/assets/images/icon-192.png`,
-            sizes: '192x192',
-            type: 'image/png'
-          }]
+        name: 'Hestia @ ' + this.serverName,
+        start_url: this.serverName,
+        description: 'A Hestia node',
+        icons: [{
+          src: `${meta.origin()}/assets/images/icon-192.png`,
+          sizes: '192x192',
+          type: 'image/png'
+        }]
       });
     });
 
@@ -140,13 +140,14 @@ class Api {
         user && user.makeSafeForDriver(driverInfo.id),
         // urljoin(req.originalUrl.replace(/\?.*$/, ''), prefix + '/register')
         `${meta.origin()}/api/v1${prefix}/register`, {
-        headers: req.headers,
-        query: req.query
-      });
+          headers: req.headers,
+          query: req.query
+        });
 
       if('redirect' in ret) {
         if(ret.redirect.headers)
-          for(const k in ret.redirect.headers) res.setHeader(k, ret.redirect.headers[k]);
+          for(const k in ret.redirect.headers) if(ret.redirect.headers[k])
+            res.setHeader(k, ret.redirect.headers[k]);
 
         res.redirect(ret.redirect.url);
         return;
@@ -189,12 +190,12 @@ class Api {
     if(this.initialized)
       throw new Error('Cannot add more plugin APIs after initialization!');
 
-      let prefix = pluginInfo.id;
+    let prefix = pluginInfo.id;
 
-      if(!prefix.startsWith('/') && prefix.length > 0)
-        prefix = '/' + prefix;
-      if(prefix.endsWith('/'))
-        prefix = prefix.slice(0, -1);
+    if(!prefix.startsWith('/') && prefix.length > 0)
+      prefix = '/' + prefix;
+    if(prefix.endsWith('/'))
+      prefix = prefix.slice(0, -1);
 
     if(pluginInfo.router) {
       this.pluginRouter.use(prefix, pluginInfo.router, handleError('plugin ' + pluginInfo.id));

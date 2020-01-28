@@ -1,6 +1,6 @@
 import Vue from 'vue';
 import Vuex, { mapGetters } from 'vuex';
-import VeeValidate from 'vee-validate';
+import { ValidationProvider } from 'vee-validate';
 import Buefy from 'buefy';
 
 import AppComponent from './app/app';
@@ -18,7 +18,6 @@ console.log('Environment:', process.env.NODE_ENV);
 
 Vue.use(Vuex);
 const store = new Vuex.Store(initialStore);
-Vue.use(VeeValidate);
 Vue.use(Buefy);
 
 const dist = Date.now() - store.state.storeBDay;
@@ -28,13 +27,13 @@ const v = new Vue({
   store,
   router,
   el: '#app',
+  components: { AppComponent, LoadingComponent, ValidationProvider },
   data: { loaded: false, done: true, working: false },
   computed: {
     ...mapGetters({
       isSetup: 'isSetup'
     }) as { isSetup: () => boolean }
   },
-  components: { AppComponent, LoadingComponent },
   render(h) {
     if(this.loaded) {
       if(this.isSetup && this.done)
@@ -45,7 +44,7 @@ const v = new Vue({
           left: 0, right: 0, bottom: 0,
           backgroundColor: 'rgba(250,250,250,0.7)',
           alignItems: 'center', justifyContent: 'center' },
-          style: { display: this.working ? 'flex' : 'none' }
+        style: { display: this.working ? 'flex' : 'none' }
         }, [ h(LoadingComponent) ]),
         h('div', { staticStyle: makeCenterStyle() }, [
           h('div', { staticStyle: { display: 'flex', alignItems: 'center', marginBottom: '1rem' } }, [
@@ -67,7 +66,7 @@ const v = new Vue({
                   type: 'is-danger'
                 });
               },
-              'showDialog': ({ type, options }: { type: string, options: any }) => {
+              'showDialog': ({ type, options }: { type: string; options: any }) => {
                 if(this.$buefy.dialog[type])
                   this.$buefy.dialog[type](options);
               },

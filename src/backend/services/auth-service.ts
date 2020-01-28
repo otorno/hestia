@@ -214,7 +214,7 @@ class AuthService {
     address: string,
     requestHeaders: { authorization?: string },
     getAuthTimestamp: (address: string) => Promise<Date>,
-    autoRegister: boolean = false) {
+    autoRegister = false) {
 
     const data = this.partialValidate(requestHeaders);
 
@@ -256,7 +256,7 @@ class AuthService {
   }
 
   public async validateUser(requestHeaders: { authorization?: string },
-    options?: { ignoreGaiaMismatch?: boolean, autoRegister?: boolean }) {
+    options?: { ignoreGaiaMismatch?: boolean; autoRegister?: boolean }) {
 
     options = Object.assign({ ignoreGaiaMismatch: false, autoRegister: false }, options);
 

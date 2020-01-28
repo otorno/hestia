@@ -88,7 +88,7 @@ class SyncPlugin implements Plugin {
               contentType: bestInfo.contentType,
               contentLength: bestInfo.size,
               stream: await this.api.gaia.read('', path).then(a => ('stream' in a) ? a.stream :
-                  axios.get<Readable>(a.redirectUrl, { responseType: 'stream' }).then(b => b.data))
+                axios.get<Readable>(a.redirectUrl, { responseType: 'stream' }).then(b => b.data))
             });
           }
         }

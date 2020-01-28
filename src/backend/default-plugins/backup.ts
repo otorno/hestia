@@ -11,7 +11,7 @@ import { NotFoundError } from '../data/hestia-errors';
 
 interface BackupPluginConfig {
   temp_directory?: string; // default: `__dirname/backups`
-                           // (i.e. `./build/backend/default-plugins/backups`)
+  // (i.e. `./build/backend/default-plugins/backups`)
 }
 
 class BackupPlugin implements Plugin {
@@ -87,7 +87,7 @@ class BackupPlugin implements Plugin {
         const addr = entry.slice(0, idx);
         const fpath = entry.slice(idx + 1);
 
-        const res: { contentType: string, redirectUrl?: string, stream?: Readable } = await this.api.gaia.read(addr, fpath);
+        const res: { contentType: string; redirectUrl?: string; stream?: Readable } = await this.api.gaia.read(addr, fpath);
         if(!res.stream)
           res.stream = (await axios.get(res.redirectUrl, { responseType: 'stream' })).data;
         zip.addReadStream(res.stream, entry);
@@ -129,7 +129,7 @@ class BackupPlugin implements Plugin {
       res.json({
         status: this.backupWorking[req.user.address] ? 'working' :
           fs.existsSync(path.join(this.tempDirectory, req.user.address + '.zip')) ? 'done' :
-          'not started'
+            'not started'
       });
     });
     this.router.get('/download', (req, res) => {

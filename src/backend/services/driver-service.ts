@@ -15,7 +15,7 @@ class DriverService {
   private driverInfo: DriverInfo[] = [];
   private logger = getLogger('drivers');
 
-  private _onDriverInit = new Subject<{ driver: Driver, driverInfo: DriverInfo }>();
+  private _onDriverInit = new Subject<{ driver: Driver; driverInfo: DriverInfo }>();
   public get onDriverInit() { return this._onDriverInit.asObservable(); }
 
   public get(id: string) {

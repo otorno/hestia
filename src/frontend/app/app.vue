@@ -6,7 +6,14 @@
         <img src='assets/images/icon-48.png' alt='uB'>
         <span class='title is-5' style='position: relative'>Hestia</span>
       </router-link>
-      <a role='button' class='navbar-burger' :class='{ "is-active": showMenu }' aria-label='menu' aria-expanded='false' @click='showMenu = !showMenu'>
+      <a
+        role='button'
+        class='navbar-burger'
+        :class='{ "is-active": showMenu }'
+        aria-label='menu'
+        aria-expanded='false'
+        @click='showMenu = !showMenu'
+      >
         <span aria-hidden='true'></span>
         <span aria-hidden='true'></span>
         <span aria-hidden='true'></span>
@@ -15,7 +22,7 @@
     <div class='navbar-menu' :class='{ "is-active": showMenu }'>
       <div class='navbar-start' style='flex-grow: 1'>
         <div class='navbar-item' style='flex-grow: 1; justify-content: center'>
-          <span class='status'>{{ status ? '# ' + status : 'Psuedo-Decentralized Storage Middleware'}}</span>
+          <span class='status'>{{ status ? '# ' + status : 'Psuedo-Decentralized Storage Middleware' }}</span>
           <!-- b-field style='width: 100%'>
             <b-input name='search' placeholder='search files' type='search' icon='magnify' v-model='search'></b-input>
           </b-field -->
@@ -26,55 +33,66 @@
         <a class='navbar-item is-hidden-desktop profile-container' style='border-bottom: 2px solid rgba(0,0,0,0.05)'>
           <figure v-if='avatar'><img :src='avatar'></figure>
           <div v-else>
-            <span>{{(name || '?')[0] }}</span>
+            <span>{{ (name || '?')[0] }}</span>
           </div>
           <div>
-            <span>{{name}}</span>
-            <span>ID-{{userdata.identityAddress}}</span>
+            <span>{{ name }}</span>
+            <span>ID-{{ userdata.identityAddress }}</span>
           </div>
         </a>
 
-        <b-dropdown class='is-hidden-touch' id='settings-dropdown' position='is-bottom-left'>
-          <a class='navbar-item profile-container is-hidden-touch' title='Profile' slot='trigger'>
+        <b-dropdown id='settings-dropdown' class='is-hidden-touch' position='is-bottom-left'>
+          <a slot='trigger' class='navbar-item profile-container is-hidden-touch' title='Profile'>
             <figure v-if='avatar'><img :src='avatar'></figure>
             <div v-else>
-              <span>{{(name || '?')[0] }}</span>
+              <span>{{ (name || '?')[0] }}</span>
             </div>
           </a>
 
           <b-dropdown-item class='profile-container'>
             <figure v-if='avatar'><img :src='avatar'></figure>
             <div v-else>
-              <span>{{(name || '?')[0] }}</span>
+              <span>{{ (name || '?')[0] }}</span>
             </div>
             <div>
-              <span>{{name}}</span>
-              <span>ID-{{userdata.identityAddress}}</span>
+              <span>{{ name }}</span>
+              <span>ID-{{ userdata.identityAddress }}</span>
             </div>
           </b-dropdown-item>
           <b-dropdown-item @click='connections()'>Connections</b-dropdown-item>
-          <b-dropdown-item :disabled='!api.plugins.backup || backupStatus === "working"' :title='api.plugins.backup ? "" : "No backup plugin found."' @click='backup()'>{{backupText}}</b-dropdown-item>
+          <b-dropdown-item
+            :disabled='!api.plugins.backup || backupStatus === "working"'
+            :title='api.plugins.backup ? "" : "No backup plugin found."'
+            @click='backup()'
+          >
+            {{ backupText }}
+          </b-dropdown-item>
           <b-dropdown-item @click='manageAccount()'>Manage Account</b-dropdown-item>
           <b-dropdown-item @click='logout()'>Logout</b-dropdown-item>
         </b-dropdown>
 
         <a class='navbar-item flex-item is-hidden-desktop' @click='connections()'>
-          <b-icon icon='link-variant'></b-icon>
+          <b-icon icon='link-variant' />
           <span style='font-weight:600'>&nbsp;Connections</span>
         </a>
 
-        <a class='navbar-item flex-item is-hidden-desktop' :disabled='!api.plugins.backup || backupStatus === "working"' :title='api.plugins.backup ? "" : "No backup plugin found."' @click='backup()'>
-          <b-icon icon='folder-download'></b-icon>
-          <span style='font-weight:600'>&nbsp;{{backupText}}</span>
+        <a
+          class='navbar-item flex-item is-hidden-desktop'
+          :disabled='!api.plugins.backup || backupStatus === "working"'
+          :title='api.plugins.backup ? "" : "No backup plugin found."'
+          @click='backup()'
+        >
+          <b-icon icon='folder-download' />
+          <span style='font-weight:600'>&nbsp;{{ backupText }}</span>
         </a>
 
         <a class='navbar-item flex-item is-hidden-desktop' @click='manageAccount()'>
-          <b-icon icon='settings'></b-icon>
+          <b-icon icon='settings' />
           <span style='font-weight:600'>&nbsp;Manage Account</span>
         </a>
 
         <a class='navbar-item flex-item is-hidden-desktop' @click='logout()'>
-          <b-icon icon='logout-variant'></b-icon>
+          <b-icon icon='logout-variant' />
           <span style='font-weight:600'>&nbsp;Logout</span>
         </a>
       </div>
@@ -82,11 +100,10 @@
   </nav>
 
   <div id='body'>
-    <hestia-explorer ref='explorer'></hestia-explorer>
+    <hestia-explorer ref='explorer' />
   </div>
 
   <div id='footer'>
-
   </div>
 </div>
 </template>

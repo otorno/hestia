@@ -12,7 +12,7 @@ class PluginService {
   private pluginInfo: PluginInfo[] = [];
   private logger = getLogger('plugins');
 
-  private _onPluginInit = new Subject<{ plugin: Plugin, pluginInfo: PluginInfo }>();
+  private _onPluginInit = new Subject<{ plugin: Plugin; pluginInfo: PluginInfo }>();
   public get onPluginInit() { return this._onPluginInit.asObservable(); }
 
   public get(id: string) {
@@ -51,9 +51,9 @@ class PluginService {
   }
 
   public async init(config: Config) {
-    const successes: { plugin: Plugin, info: PluginInfo }[] = [];
+    const successes: { plugin: Plugin; info: PluginInfo }[] = [];
     const total = Object.keys(config.plugins).filter(a => typeof config.plugins[a] === 'object').length;
-    /*if(Object.keys(config).find(a => a === 'dashboard')) {
+    /* if(Object.keys(config).find(a => a === 'dashboard')) {
       config.plugins['dashboard'] = {
         path: './default-drivers/dashboard.js'
       };

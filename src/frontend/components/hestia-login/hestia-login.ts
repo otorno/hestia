@@ -1,5 +1,4 @@
 import Vue from 'vue';
-import { FieldFlags } from 'vee-validate';
 import { mapGetters } from 'vuex';
 import { VVue, makeUserSession } from '../../vvue';
 import { verifyToken } from 'common/util/token-util';
@@ -26,7 +25,34 @@ export default (Vue as VVue).component('hestia-login', {
       loggedIn: 'isLoggedIn',
       isSetup: 'isSetup'
     })
-  } as { isSetup: () => boolean, loggedIn: () => boolean },
+  } as { isSetup: () => boolean; loggedIn: () => boolean },
+  watch: {
+    loggedIn(n) {
+      if(!n) {
+        this.$emit('update:done', false);
+      }
+    },
+    working(n) {
+      this.$emit('working', n);
+    },
+    workingOn(n) {
+      if(n)
+        console.log('Working on ' + n + '...');
+    },
+    $route(n) {
+      if(n.query.authResponse && !this.working && !this.loggedIn) {
+        console.log('Sign-in pending...');
+
+        this.userSession.handlePendingSignIn(String(this.$route.query.authResponse)).then(async d => {
+          this.token = (await this.userSession.getOrSetLocalGaiaHubConnection()).token;
+          this.postLogin();
+        }).catch(err => {
+          console.error(err);
+          this.logout();
+        }).then(() => this.$router.push({ path: '', query: { } }));
+      }
+    }
+  },
   mounted() {
     if(this.isSetup) {
       this.$emit('update:done', true);
@@ -57,35 +83,8 @@ export default (Vue as VVue).component('hestia-login', {
       }
     }
   },
-  watch: {
-    loggedIn(n) {
-      if(!n) {
-        this.$emit('update:done', false);
-      }
-    },
-    working(n) {
-      this.$emit('working', n);
-    },
-    workingOn(n) {
-      if(n)
-        console.log('Working on ' + n + '...');
-    },
-    $route(n) {
-      if(n.query.authResponse && !this.working && !this.loggedIn) {
-        console.log('Sign-in pending...');
-
-        this.userSession.handlePendingSignIn(String(this.$route.query.authResponse)).then(async d => {
-          this.token = (await this.userSession.getOrSetLocalGaiaHubConnection()).token;
-          this.postLogin();
-        }).catch(err => {
-          console.error(err);
-          this.logout();
-        }).then(() => this.$router.push({ path: '', query: { } }));
-      }
-    }
-  },
   methods: {
-    getType(field: FieldFlags, ignoreTouched?: boolean) {
+    getType(field: { dirty: boolean; touched: boolean; valid: boolean }, ignoreTouched?: boolean) {
       if(!field || (!field.dirty && (ignoreTouched || !field.touched))) return '';
       if(field.valid) return 'is-success';
       return 'is-danger';
@@ -201,7 +200,7 @@ export default (Vue as VVue).component('hestia-login', {
               onConfirm: () => this.logout()
             });
           } else throw err;
-      }).catch(err => {
+        }).catch(err => {
         this.$buefy.dialog.alert({
           type: 'is-danger',
           message: 'Error verifying token: ' + err.message

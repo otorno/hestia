@@ -4,7 +4,7 @@ import { Plugin } from '../data/plugin';
 
 interface DashboardPluginConfig {
   root_directory?: string; // defaults to `__dirname/../../frontend"`
-                           // (i.e. `./build/frontend` or `./build-prod/frontend`)
+  // (i.e. `./build/frontend` or `./build-prod/frontend`)
 }
 
 class DashboardPlugin implements Plugin {

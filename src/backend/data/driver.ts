@@ -11,7 +11,7 @@ export interface DriverApiInterface {
 }
 
 interface ListFilesResponseExtended {
-  entries: { name: string, contentLength: number, lastModifiedDate: number }[];
+  entries: { name: string; contentLength: number; lastModifiedDate: number }[];
   page?: number;
 }
 
@@ -56,7 +56,7 @@ export interface Driver {
     user: User;
   }): Promise<void>;
 
-  /*listFiles(prefix: string, page: number, state: false, user: User): Promise<{
+  /* listFiles(prefix: string, page: number, state: false, user: User): Promise<{
     entries: string[],
     page?: number }>;
   listFiles(prefix: string, page: number, state: true, user: User): Promise<{
@@ -71,17 +71,17 @@ export interface Driver {
   listFiles<State extends boolean>(prefix: string, page: number, state: State, user: User): Promise<ListFilesResponse<State>>;
 
   init(id: string, config: any, api: DriverApiInterface): Promise<{
-    name: string,
-    longId: string,
-    icon: Buffer,
-    multiInstance?: boolean,
-    multiUser?: boolean,
-    autoRegisterable?: boolean
+    name: string;
+    longId: string;
+    icon: Buffer;
+    multiInstance?: boolean;
+    multiUser?: boolean;
+    autoRegisterable?: boolean;
   }>;
 
   getInfo(user: User): Promise<{
-    spaceUsed: number,
-    spaceAvailable?: number,
+    spaceUsed: number;
+    spaceAvailable?: number;
   }>;
 
   tick?(): Promise<void>;
@@ -91,7 +91,7 @@ export interface Driver {
    * @param user The user
    */
   autoRegister?(user: User): Promise<{
-    finish: { address: string, userdata?: any }
+    finish: { address: string; userdata?: any };
   }>;
 
   /**
@@ -100,13 +100,13 @@ export interface Driver {
    * @param redirectUrl The url that the driver should redirect towards to continue the workflow
    * @param req The request object
    */
-  register(user: User, redirectUrl: string, req: { headers: { [key: string]: string | string[] }, query: any }): Promise<{
+  register(user: User, redirectUrl: string, req: { headers: { [key: string]: string | string[] }; query: any }): Promise<{
     redirect: {
-      url: string
-      headers?: {[key: string]: any},
-    }
+      url: string;
+      headers?: {[key: string]: any};
+    };
   } | {
-    finish: { address: string, userdata?: any }
+    finish: { address: string; userdata?: any };
   }>;
 
   postRegisterCheck?(user: User, connId: string, userData: any): Promise<void>;

@@ -60,11 +60,11 @@ db.init(config).then(async () => {
 
   app.use(helmet.contentSecurityPolicy({
     directives: production ? {
-      styleSrc: ["'self'"], // tslint:disable-line
-      scriptSrc: ["'self'"] // tslint:disable-line
+      styleSrc: ['\'self\''],
+      scriptSrc: ['\'self\'']
     } : {
-      styleSrc: ["'self'", "'unsafe-inline'"], // tslint:disable-line
-      scriptSrc: ["'self'", "'unsafe-eval'"], // tslint:disable-line
+      styleSrc: ['\'self\'', '\'unsafe-inline\''],
+      scriptSrc: ['\'self\'', '\'unsafe-eval\'']
     }
   }));
 
@@ -117,10 +117,12 @@ db.init(config).then(async () => {
   // @ts-ignore
   app.listen(config.port, config.ip);
 
-setInterval(() => { drivers.tick(); plugins.tick(); /*db.trimDeletedTick();*/ }, 500);
+  setInterval(() => { drivers.tick(); plugins.tick(); /* db.trimDeletedTick();*/ }, 500);
 
 }, err => {
   console.log('Failed to initialize the database: ' + err);
+  if(err.stack)
+    console.log(err.stack);
   process.exit(1);
 }).catch(err => {
   console.error('Hestia.js caught an error!');

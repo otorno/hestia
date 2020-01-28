@@ -3,7 +3,7 @@ import { ConnectionMetadataIndex, MetadataIndex, ExpandedMetadataIndex, Metadata
 
 export interface SubTable {
   get<T = any>(key: string): Promise<T>;
-  getAll<T = any>(): Promise<{ key: string, value: T }[]>;
+  getAll<T = any>(): Promise<{ key: string; value: T }[]>;
   set(key: string, value: any): Promise<void>;
   delete(key: string): Promise<void>;
 }

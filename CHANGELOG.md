@@ -31,6 +31,7 @@ const res = await table.get(key);
 ## Changes
 
 - Updated dependencies
+- Linted
 
 ### Frontend
 

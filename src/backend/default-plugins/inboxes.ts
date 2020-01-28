@@ -6,11 +6,11 @@ import { SubTable } from '../data/db-driver';
 
 interface InboxesPluginConfig {
   root_directory?: string; // defaults to `__dirname/../../frontend"`
-                           // (i.e. `./build/frontend` or `./build-prod/frontend`)
+  // (i.e. `./build/frontend` or `./build-prod/frontend`)
 }
 
 interface InboxEntry {
-  from: { username?: string, address: string, hub: string, read_prefix: string };
+  from: { username?: string; address: string; hub: string; read_prefix: string };
   title: string;
   caption: string;
 }

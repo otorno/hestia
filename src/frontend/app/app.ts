@@ -43,7 +43,7 @@ export default (Vue as VVue).extend({
           this.userdata.profile &&
           this.userdata.profile.image &&
           this.userdata.profile.image[0]) ?
-          this.userdata.profile.image[0].contentUrl : '';
+        this.userdata.profile.image[0].contentUrl : '';
     },
     backupText(): string {
       switch(this.backupStatus) {
@@ -53,6 +53,23 @@ export default (Vue as VVue).extend({
         default: return 'Backup Everything';
       }
     }
+  },
+  watch: {
+    /* $route(n: Route, o) {
+      if(!o && n.query['q'] !== this.search)
+        this.search = n.query['q'] as string; // :/
+      else if(n.query['q'] !== o.query['q'] && (n.query['q'] || o.query['q']) && n.query['q'] !== this.search)
+        this.search = n.query['q'] as string;
+      else if(n.path !== '/search' && this.search)
+        this.search = '';
+
+      if(n.path !== o.path)
+        this.showMenu = false;
+    },
+    search(n, o) {
+      if(n !== o && (n || o))
+        this.updateSearch(n);
+    }*/
   },
   async mounted() {
 
@@ -87,23 +104,6 @@ export default (Vue as VVue).extend({
       }
     }
   },
-  watch: {
-    /*$route(n: Route, o) {
-      if(!o && n.query['q'] !== this.search)
-        this.search = n.query['q'] as string; // :/
-      else if(n.query['q'] !== o.query['q'] && (n.query['q'] || o.query['q']) && n.query['q'] !== this.search)
-        this.search = n.query['q'] as string;
-      else if(n.path !== '/search' && this.search)
-        this.search = '';
-
-      if(n.path !== o.path)
-        this.showMenu = false;
-    },
-    search(n, o) {
-      if(n !== o && (n || o))
-        this.updateSearch(n);
-    }*/
-  },
   methods: {
     handleError(e: AxiosError, action: string) {
       const message = (e.response && e.response.data  && e.response.data.message) || e.message || 'error';
@@ -114,12 +114,12 @@ export default (Vue as VVue).extend({
       console.error(e);
     },
     getProfileName(user: UserData, noFallback?: boolean) {
-      if(!user) return `{null}`;
+      if(!user) return '{null}';
       if(user.username) return user.username;
       if(user.profile && user.profile.name) return user.profile.name;
       if(!noFallback) return `ID-${user.identityAddress}`;
     },
-    /*updateSearch: _.debounce(function(this, n?: string) {
+    /* updateSearch: _.debounce(function(this, n?: string) {
       if(!n) {
         this.$router.push({ path: '/', query: { } });
         return;

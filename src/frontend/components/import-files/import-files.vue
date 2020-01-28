@@ -5,7 +5,6 @@
   </header>
 
   <section class='modal-card-body'>
-
   </section>
 
   <footer class='modal-card-foot'>

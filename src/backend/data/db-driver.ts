@@ -12,7 +12,7 @@ export interface SubDB {
 
 export interface SubTable<T = any> {
   get(key: string): Promise<T>;
-  getAll(): Promise<{ key: string, value: T }[]>;
+  getAll(): Promise<{ key: string; value: T }[]>;
   set(key: string, value: T): Promise<void>;
   delete(key: string): Promise<void>;
 }

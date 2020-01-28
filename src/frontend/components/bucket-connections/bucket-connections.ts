@@ -4,7 +4,7 @@ import { HestiaApi } from 'common/api/api';
 import { AxiosError } from 'axios';
 
 export default (Vue as VVue).component('hestia-bucket-connections', {
-  props: { token: { type: String }, bucket: { type: String }, rootDir: { type: Boolean, default: false } },
+  props: { token: { type: String, default: '' }, bucket: { type: String, default: '' }, rootDir: { type: Boolean, default: false } },
   data() {
     return {
       connections: [] as {

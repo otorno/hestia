@@ -2,7 +2,7 @@ import { configure } from 'log4js';
 import Config from './data/config';
 import * as path from 'path';
 
-const level = process.env.NODE_ENV === 'production' ? 'info' : 'debug';
+const level = process.env.NODE_ENV === 'production' ? 'info' : 'trace';
 const layout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %m' };
 const errorLayout = { type: 'pattern', pattern: '%[[%d][%p][%c]:%] %f:%l %m%n%s' };
 const layoutBasic = { type: 'pattern', pattern: '[%d][%p][%c]: %m' };

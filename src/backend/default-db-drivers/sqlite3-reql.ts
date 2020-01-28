@@ -1,4 +1,4 @@
-import { r, MasterPool, RTable, RDatum, RDatabase } from 'rethinkdb-ts';
+import { createSQLite3Database, Database, Table, Datum } from 'reql-bridge';
 import { getLogger, Logger } from '@log4js-node/log4js-api';
 import { NotFoundError } from '../data/hestia-errors';
 import { User, SerializedUser } from '../data/user';
@@ -24,13 +24,12 @@ function metadataTrim(data: Metadata) {
   };
 }
 
-interface RethinkDBConfig {
-  host?: string; // (optional) the RethinkDB host (default: `127.0.0.1`)
-  port?: number; // (optional) the RethinkDB port (default: `28015`)
+interface SQLite3ReQLConfig {
+  filename?: string; // (optional) the SQLite3 DB filename, (default: `hestia-rql-db.sqlite`)
 }
 
-class RethinkDBSubTable<T = any> implements SubTable<T> {
-  constructor(private table: RTable<{ key: string; value: any }>) { }
+class SQLite3ReQLSubTable<T = any> implements SubTable<T> {
+  constructor(private table: Table<{ key: string; value: any }>) { }
 
   async get(key: string): Promise<T> {
     return this.table.get(key)('value').run() as Promise<T>;
@@ -49,59 +48,46 @@ class RethinkDBSubTable<T = any> implements SubTable<T> {
   }
 }
 
-class RethinkDBDriver implements DbDriver {
+class SQLite3ReQLDriver implements DbDriver {
 
-  private pool: MasterPool;
-  private logger = getLogger('services.db.rethinkdb');
+  private db: Database;
+  private logger = getLogger('services.db.sqlite3-reql');
 
-  private get apiTableNames() { return ['users', 'metadata']; }
+  private get usersTbl() { return this.db.table<SerializedUser>('users'); }
+  private get metadataTbl() { return this.db.table<SerializedMetadataIndexEntry>('metadata'); }
 
-  private get apiDbName() { return 'hestia_api'; }
-  private get dataDbName() { return 'hestia_data'; }
+  public async init(config: SQLite3ReQLConfig) {
+    config = Object.assign({ filename: 'hestia-rql-db.sqlite' }, config);
+    this.db = await createSQLite3Database({ filename: config.filename, logger: 'services.db.sqlite3-reql.raw'});
 
-  private get dbNames() { return [ this.apiDbName, this.dataDbName ]; }
+    const tbls = await this.db.tableList().run();
 
-  private get apiDb() { return r.db(this.apiDbName); }
-  private get dataDb() { return r.db(this.dataDbName); }
+    if(!tbls.includes('metadata'))
+      this.metadata.create(this.db);
+    if(!tbls.includes('users'))
+      await this.users.create(this.db);
 
-  private get usersTbl() { return this.apiDb.table('users'); }
-  private get metadataTbl() { return this.apiDb.table('metadata'); }
+    await this.users.init(this.usersTbl, this.metadataTbl);
+    await this.metadata.init(this.metadataTbl);
+    this.drivers.init(this.db);
+    this.plugins.init(this.db);
 
-  public async init(config: RethinkDBConfig) {
-    config = Object.assign({ host: '127.0.0.1', port: 28015 }, config);
-    this.pool = await r.connectPool({ host: config.host, port: config.port });
-
-    await r(this.dbNames).difference(r.dbList()).run().then(async result => {
-      for(const dbName of result)
-        await r.dbCreate(dbName).run().then(a => this.logger.info(`Created db "${dbName}!`));
-    });
-
-    await r(this.apiTableNames).difference(this.apiDb.tableList()).run().then(async result => {
-      for(const tableName of result) {
-        if(tableName === 'metadata')
-          await this.apiDb.tableCreate('metadata', { primaryKey: 'key' }).run()
-            .then(a => this.logger.info('Created api table "metadata"!'));
-        else if(tableName === 'users')
-          await this.apiDb.tableCreate('users', { primaryKey: 'address' }).run()
-            .then(a => this.logger.info('Created api table "users"!'));
-      }
-    });
-
-    await this.users.init();
-    await this.metadata.init();
-
-    return { name: 'RethinkDB' };
+    return { name: 'SQLite3-ReQL' };
   }
 
-  public close() {
-    return this.pool.drain();
+  public async close() {
+    if(this.db)
+      return this.db.close();
   }
 
-  public drivers = new class RethinkDBDriversCategory implements DbDriverSubCategory {
-    constructor(private db: RDatabase) { }
+  public drivers = new class SQLite3ReQLDriversCategory implements DbDriverSubCategory {
+    private db: Database;
+
+    constructor() { }
+    public init(db: Database) { if(!this.db) this.db = db; }
 
     private async createTable<T = any>(id: string, name: string): Promise<SubTable<T>> {
-      await this.db.tableCreate('driver_' + id + '_' + name, { primaryKey: 'key' }).run();
+      await this.db.tableCreate('driver_' + id + '_' + name, [{ name: 'key', type: 'string' }, { name: 'value', type: 'any' }]).run();
       return this.getTable<T>(id, name);
     }
 
@@ -110,11 +96,11 @@ class RethinkDBDriver implements DbDriver {
     }
 
     private async listTables(id: string): Promise<string[]> {
-      return this.db.tableList().filter(doc => doc.match('^driver_' + id) as any).run();
+      return this.db.tableList().filter(doc => doc.startsWith('driver_' + id) as any).run();
     }
 
     private async getTable<T = any>(id: string, name: string): Promise<SubTable<T>> {
-      return new RethinkDBSubTable<T>(this.db.table('driver_' + id + '_' + name));
+      return new SQLite3ReQLSubTable<T>(this.db.table('driver_' + id + '_' + name));
     }
 
     public getDB(id: string): SubDB {
@@ -126,13 +112,16 @@ class RethinkDBDriver implements DbDriver {
         getTable(name: string) { return dis.getTable(id, name); }
       };
     }
-  }(this.dataDb);
+  }();
 
-  public plugins = new class RethinkDBPluginsCategory implements DbDriverSubCategory {
-    constructor(private db: RDatabase) { }
+  public plugins = new class SQLite3ReQLPluginsCategory implements DbDriverSubCategory {
+    private db: Database;
+
+    constructor() { }
+    public init(db: Database) { if(!this.db) this.db = db; }
 
     private async createTable<T = any>(id: string, name: string): Promise<SubTable<T>> {
-      await this.db.tableCreate('plugin_' + id + '_' + name, { primaryKey: 'key' }).run();
+      await this.db.tableCreate('plugin_' + id + '_' + name, [{ name: 'key', type: 'string' }, { name: 'value', type: 'any' }]).run();
       return this.getTable(id, name);
     }
 
@@ -141,11 +130,11 @@ class RethinkDBDriver implements DbDriver {
     }
 
     private async listTables(id: string): Promise<string[]> {
-      return this.db.tableList().filter(doc => doc.match('^plugin_' + id) as any).run();
+      return this.db.tableList().filter(doc => doc.startsWith('plugin_' + id)).run();
     }
 
     private async getTable<T = any>(id: string, name: string): Promise<SubTable<T>> {
-      return new RethinkDBSubTable<T>(this.db.table('plugin_' + id + '_' + name));
+      return new SQLite3ReQLSubTable<T>(this.db.table('plugin_' + id + '_' + name));
     }
 
     public getDB(id: string): SubDB {
@@ -157,28 +146,50 @@ class RethinkDBDriver implements DbDriver {
         getTable(name: string) { return dis.getTable(id, name); }
       };
     }
-  }(this.dataDb);
+  }();
 
-  public users = new class RethinkDBUsersCategory implements DbDriverUsersCategory {
-    constructor(private table: RTable<SerializedUser>,
-      private metadataTable: RTable<SerializedMetadataIndexEntry>,
-      private logger: Logger) { }
+  public users = new class SQLite3ReQLUsersCategory implements DbDriverUsersCategory {
+    private table: Table<SerializedUser>;
+    private metadataTable: Table<SerializedMetadataIndexEntry>;
 
-    public async init() {
+    constructor(private logger: Logger) { }
+
+    public async create(db: Database) {
+      return db.tableCreate('users', [
+        { name: 'address', type: 'string', index: true },
+        { name: 'internalBucketAddress', type: 'string' },
+        { name: 'defaultConnection', type: 'string' },
+        { name: 'buckets', type: 'object', index: true }, // string[]
+        { name: 'connectionIds', type: 'object' }, // string[]
+        { name: 'connections', type: 'object' }
+      ]).run().then(a => this.logger.info('Created table "users"!'));
+    }
+
+    public async init(table: Table<SerializedUser>, metadataTable: Table<SerializedMetadataIndexEntry>) {
+      if(!this.table)
+        this.table = table;
+      if(!this.metadataTable)
+        this.metadataTable = metadataTable;
+
       await this.table.indexList().run().then(async result => {
         if(!result.includes('address'))
           await this.table.indexCreate('address').run()
-            .then(() => this.table.indexWait('address').run())
             .then(a => this.logger.info('Created address index in user table (api db).'));
         if(!result.includes('buckets'))
-          await this.table.indexCreate('buckets', { multi: true }).run()
-            .then(() => this.table.indexWait('buckets').run())
+          await this.table.indexCreate('buckets').run()
             .then(a => this.logger.info('Created buckets index in user table (api db).'));
       });
     }
 
     public async register(address: string, bucketAddress = '') {
-      await this.table.insert(new User({ address, internalBucketAddress: bucketAddress }).serialize(), { conflict: 'replace' }).run();
+      const user = await this.table.get(address).run();
+
+      console.log('user: ', user);
+      if(!user)
+        await this.table.insert(new User({ address, internalBucketAddress: bucketAddress }).serialize(), { conflict: 'replace' }).run();
+      else
+        return User.deserialize(user);
+
       return this.get(address);
     }
 
@@ -187,10 +198,8 @@ class RethinkDBDriver implements DbDriver {
     }
 
     public async get(address: string) {
-      const users = await this.table.getAll(address, { index: 'address' }).run();
-      if(users.length > 1) throw new Error('More than one user with address ' + address + '!');
-      if(users.length <= 0) throw new NotFoundError('No users with the address ' + address + '!');
-      return User.deserialize(users[0]);
+      const user = await this.table.get(address).run();
+      return User.deserialize(user);
     }
 
     public async getFromBucket(address: string) {
@@ -210,24 +219,42 @@ class RethinkDBDriver implements DbDriver {
     }
 
     public async updateConnectionBuckets(connId: string, addresses: string[]) {
-      const matchers = r.expr(addresses.map(a => '^' + a));
-      this.metadataTable.getAll(connId, { index: 'connId' }).filter(
-        doc => matchers.contains(matcher => doc('path').match(matcher)).not())
-        .delete().run();
+      await this.metadataTable.getAll(connId, { index: 'connId' }).filter(doc => {
+        let q: Datum<boolean>;
+        for(const addr of addresses) {
+          if(!q)
+            q = doc('path').startsWith(addr).not();
+          else
+            q = q.and(doc('path').startsWith(addr).not());
+        }
+        return q;
+      }).delete().run();
     }
-  }(this.usersTbl, this.metadataTbl, this.logger);
+  }(this.logger);
 
-  public metadata = new class RethinkDBMetadataCategory implements DbDriverMetadataCategory {
-    constructor(private table: RTable<SerializedMetadataIndexEntry>, private logger: Logger) { }
-    public async init() {
+  public metadata = new class SQLite3ReQLMetadataCategory implements DbDriverMetadataCategory {
+    private table: Table<SerializedMetadataIndexEntry>;
+
+    constructor(private logger: Logger) { }
+
+    public async create(db: Database) {
+      return db.tableCreate('metadata', [
+        { name: 'key', type: 'string', index: true },
+        { name: 'connId', type: 'string', index: true },
+        { name: 'path', type: 'string', index: true }
+      ]).run().then(a => this.logger.info('Created table "metadata"!'));
+    }
+
+    public async init(table: Table<SerializedMetadataIndexEntry>) {
+      if(!this.table)
+        this.table = table;
+
       await this.table.indexList().run().then(async result => {
         if(!result.includes('path'))
           await this.table.indexCreate('path').run()
-            .then(() => this.table.indexWait('path').run())
             .then(a => this.logger.info('Created path index in metadata table (api db).'));
         if(!result.includes('connId'))
           await this.table.indexCreate('connId').run()
-            .then(() => this.table.indexWait('connId').run())
             .then(a => this.logger.info('Created connId index in metadata table (api db).'));
       });
     }
@@ -246,8 +273,16 @@ class RethinkDBDriver implements DbDriver {
     }
 
     public async getForUserExpanded(user: User): Promise<ExpandedMetadataIndex> {
-      const connIds = r.expr(Object.keys(user.connections));
-      const info = await this.table.filter(d => connIds.contains(d('connId'))).run();
+      const info = await this.table.filter(doc => {
+        let query: Datum<boolean>;
+        for(const connId in user.connections) if(user.connections[connId]) {
+          if(!query)
+            query = doc('connId').eq(connId);
+          else
+            query = query.or(doc('connId').eq(connId));
+        }
+        return query;
+      }).run();
       const ret: ExpandedMetadataIndex = { };
       for(const i of info) {
         if(!ret[i.path])
@@ -258,8 +293,17 @@ class RethinkDBDriver implements DbDriver {
     }
 
     public async getForUser(user: User): Promise<MetadataIndex> {
-      const connIds = r.expr(Object.keys(user.connections));
-      const info = await this.table.filter(d => connIds.contains(d('connId'))).run();
+      const info = await this.table.filter(doc => {
+        let query: Datum<boolean>;
+        for(const connId in user.connections) if(user.connections[connId]) {
+          if(!query)
+            query = doc('connId').eq(connId);
+          else
+            query = query.or(doc('connId').eq(connId));
+        }
+        return query;
+      }).run();
+
       const oldestLatestModifiedDates: { [path: string]: { oldest: Date; latest: Date } } = { };
       const ret: MetadataIndex = { };
       for(const i of info) {
@@ -292,7 +336,7 @@ class RethinkDBDriver implements DbDriver {
      * @param bucket The bucket to limit the results to
      */
     public async getForBucket(bucket: string): Promise<MetadataIndex> {
-      const info = await this.table.filter(doc => doc('path').match('^' + bucket) as RDatum<any>).run();
+      const info = await this.table.filter(doc => doc('path').startsWith(bucket)).run();
 
       const oldestLatestModifiedDates: { [path: string]: { oldest: Date; latest: Date } } = { };
       const ret: MetadataIndex = { };
@@ -365,26 +409,7 @@ class RethinkDBDriver implements DbDriver {
     public async deleteAllForConnection(connId: string) {
       await this.table.getAll(connId, { index: 'connId' }).delete().run();
     }
-  }(this.metadataTbl, this.logger);
-
-
-  private lastTick = Date.now();
-  private trimDeletedTickWorking = false;
-  public async trimDeletedTick() {
-    if(this.trimDeletedTickWorking || Date.now() - this.lastTick < 120000) // two minutes
-      return;
-    this.trimDeletedTickWorking = true;
-    this.lastTick = Date.now();
-
-    const rowsToDelete: string[] = await (this.metadataTbl.group({ index: 'path' }) as RDatum<{
-      group: string; reduction: SerializedMetadataIndexEntry[];
-    }[]>).filter(r.row('reduction').contains(d => d('size').ne(0)).not()).ungroup().map(r.row('key')).run();
-
-    if(rowsToDelete.length)
-      await this.metadataTbl.getAll(rowsToDelete).delete().run();
-
-    this.trimDeletedTickWorking = false;
-  }
+  }(this.logger);
 }
 
-export default new RethinkDBDriver();
+export default new SQLite3ReQLDriver();

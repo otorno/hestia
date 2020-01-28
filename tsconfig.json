@@ -10,13 +10,15 @@
     "strict": true,
     "strictNullChecks": false,
     "noImplicitAny": false,
+    "skipLibCheck": true,
     "lib": [
       "esnext",
       "dom"
     ]
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "src/**/*.vue",
   ],
   "exclude": [
     "node_modules",

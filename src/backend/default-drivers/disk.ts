@@ -37,7 +37,7 @@ class DiskDriver implements Driver {
     return p;
   }
 
-  /// see: https://github.com/jprichardson/node-fs-extra/issues/656#issuecomment-500135176
+  // / see: https://github.com/jprichardson/node-fs-extra/issues/656#issuecomment-500135176
   private getSize(p: string): number {
     if(!fs.existsSync(p))
       return 0;
@@ -61,7 +61,7 @@ class DiskDriver implements Driver {
     storageTopLevel: string;
     user: User;
   }): Promise<{ stream: ReadableStream }> {
-    this.logger.info(`Read: ` + path.join(options.storageTopLevel, options.path));
+    this.logger.info('Read: ' + path.join(options.storageTopLevel, options.path));
     const p = this.validatePath(options.storageTopLevel, options.user.address, options.path);
 
     if(!fs.existsSync(p))
@@ -80,7 +80,7 @@ class DiskDriver implements Driver {
     stream: ReadableStream;
     user: User;
   }): Promise<void> {
-    this.logger.info(`Write: ` + path.join(options.storageTopLevel, options.path));
+    this.logger.info('Write: ' + path.join(options.storageTopLevel, options.path));
     const p = this.validatePath(options.storageTopLevel, options.user.address, options.path);
     this.validateUserStorage(options.user.address);
 
@@ -96,7 +96,7 @@ class DiskDriver implements Driver {
     storageTopLevel: string;
     user: User;
   }): Promise<void> {
-    this.logger.info(`Delete: ` + path.join(options.storageTopLevel, options.path));
+    this.logger.info('Delete: ' + path.join(options.storageTopLevel, options.path));
     const p = this.validatePath(options.storageTopLevel, options.user.address, options.path);
 
     if(!fs.existsSync(p))
@@ -105,8 +105,8 @@ class DiskDriver implements Driver {
     return fs.remove(p);
   }
 
-  private getAllFiles(dir: string): { name: string, contentLength: number, lastModifiedDate: number }[] {
-    let ret: { name: string, contentLength: number, lastModifiedDate: number }[] = [];
+  private getAllFiles(dir: string): { name: string; contentLength: number; lastModifiedDate: number }[] {
+    let ret: { name: string; contentLength: number; lastModifiedDate: number }[] = [];
     const entries = fs.readdirSync(dir);
     for(const e of entries) {
       const stat = fs.statSync(path.join(dir, e));
@@ -119,7 +119,7 @@ class DiskDriver implements Driver {
   }
 
   public async listFiles(prefix: string, page: number, state: boolean, user: User): Promise<any> {
-    this.logger.info(`List files: ` + path.normalize(prefix));
+    this.logger.info('List files: ' + path.normalize(prefix));
 
     const p = path.normalize(path.join(this.storageRootDirectory, user.address, prefix));
     if(!p.startsWith(path.normalize(this.storageRootDirectory)) || !p.endsWith(prefix) || !p.includes(user.address))
@@ -165,7 +165,7 @@ class DiskDriver implements Driver {
     const icon = fs.readFileSync(path.join(__dirname, 'icons', 'harddisk.png'));
 
     if(this.maxTotalStorage && this.getSize(this.storageRootDirectory) >= this.maxTotalStorage)
-      this.logger.warn(`Disk (driver) has reached the alloted size limit!`);
+      this.logger.warn('Disk (driver) has reached the alloted size limit!');
 
     const mp = path.join(this.storageRootDirectory, '.hestia_metadata');
     if(fs.existsSync(mp))

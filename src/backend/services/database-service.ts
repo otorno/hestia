@@ -18,7 +18,7 @@ class DatabaseService implements DbDriver, DbDriverHandler {
   public async init(config: Config) {
     let path = config.db_driver_path || 'default-db-drivers/sqlite3.js';
     if(path.startsWith('default-db-drivers'))
-          path = '../' + path;
+      path = '../' + path;
     const driver: DbDriver = (await import(path)).default;
     const initData = await driver.init(config.db_driver_config);
     this.logger.info('Initialized DB driver "' + initData.name + '"!');
@@ -27,8 +27,9 @@ class DatabaseService implements DbDriver, DbDriverHandler {
     return initData;
   }
 
-  public close() {
-    return this.driver.close();
+  public async close() {
+    if(this.driver)
+      return this.driver.close();
   }
 
   drivers = new class DbDriversCategory implements DbDriverSubCategory {
@@ -43,7 +44,7 @@ class DatabaseService implements DbDriver, DbDriverHandler {
 
   users = new class DbUsersCategory implements DbDriverUsersCategory {
     constructor(private parent: DbDriverHandler) { }
-    public async register(address: string, bucketAddress: string = ''): Promise<User> {
+    public async register(address: string, bucketAddress = ''): Promise<User> {
       return this.parent.driver.users.register(address, bucketAddress);
     }
     public async delete(address: string): Promise<void> {
