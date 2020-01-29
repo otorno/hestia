@@ -5,6 +5,7 @@ import { PluginApi } from '../data/plugin-api-interface';
 import { configIdRegex } from '../util';
 import { getLogger } from 'log4js';
 import { NotFoundError } from '../data/hestia-errors';
+import { Server } from 'socket.io';
 
 class PluginService {
 
@@ -50,7 +51,7 @@ class PluginService {
     this.ticking['.'] = false;
   }
 
-  public async init(config: Config) {
+  public async init(config: Config, io: Server) {
     const successes: { plugin: Plugin; info: PluginInfo }[] = [];
     const total = Object.keys(config.plugins).filter(a => typeof config.plugins[a] === 'object').length;
     /* if(Object.keys(config).find(a => a === 'dashboard')) {
@@ -78,10 +79,12 @@ class PluginService {
           path = '../' + path;
 
         const plugin: Plugin = (await import(path)).default;
-        const info = await plugin.init(pluginId, pluginConfig, new PluginApi(pluginId));
+        const info = await plugin.init(pluginId, pluginConfig, new PluginApi(pluginId, io.of('/' + pluginId)));
         pluginInfo.longId = info.longId;
-        if(this.pluginInfo.find(a => a.longId === info.longId))
+        if(!info.multiInstance && this.pluginInfo.find(a => a.longId === info.longId))
           throw new Error('Plugin with longId "' + info.longId + '" already exists!');
+        else
+          pluginInfo.multiInstance = true;
         pluginInfo.name = info.name || pluginInfo.name;
         pluginInfo.router = info.router;
         pluginInfo.authedAnyRouter = info.authedAnyRouter;

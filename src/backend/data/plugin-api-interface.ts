@@ -9,6 +9,7 @@ import meta from '../services/meta-service';
 import { Metadata } from './metadata-index';
 import { SubDB } from './db-driver';
 import { User } from './user';
+import { Namespace } from 'socket.io';
 
 interface InternalPluginApiInterface {
   id: string;
@@ -19,8 +20,12 @@ export class PluginApi implements PluginApiInterface, InternalPluginApiInterface
   private _id: string;
   public get id() { return this._id; }
 
-  constructor(id: string) {
+  private _io: Namespace;
+  public get io() { return this._io; }
+
+  constructor(id: string, io: Namespace) {
     this._id = id;
+    this._io = io;
     this.db.plugin = db.plugins.getDB(id);
   }
 
@@ -44,6 +49,19 @@ export class PluginApi implements PluginApiInterface, InternalPluginApiInterface
       return meta.host();
     }
   });
+
+  sockets = new class {
+    constructor(private parent: PluginApi) { }
+    emit(event: string, ...data: any[]) {
+      return this.parent.io.emit(event, ...data);
+    }
+    emitTo(rooms: string[], event: string, ...data: any[]) {
+      let io = this.parent.io;
+      for(const room of rooms)
+        io = io.to(room);
+      return io.emit(event, ...data);
+    }
+  }(this);
 
   gaia = Object.freeze({
     read(address: string, path: string) {

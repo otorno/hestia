@@ -1,6 +1,8 @@
 import 'source-map-support/register';
 import configureLogger from './logger';
 
+import * as http from 'http';
+import * as socketio from 'socket.io';
 import * as express from 'express';
 import * as cors from 'cors';
 import * as helmet from 'helmet';
@@ -46,6 +48,8 @@ db.init(config).then(async () => {
   const httpLogger = getLogger('express');
 
   const app = express();
+  const server = http.createServer(app);
+  const io = socketio.listen(server);
   app.set('trust proxy', 1);
 
   app.use(bodyParser.raw({ limit: config.max_blob_size }));
@@ -80,7 +84,7 @@ db.init(config).then(async () => {
   connections.init(config);
   api.preInit(config);
   await drivers.init(config);
-  await plugins.init(config);
+  await plugins.init(config, io);
   api.postInit();
 
   app.use('/', api.router);
@@ -115,7 +119,7 @@ db.init(config).then(async () => {
   console.log(`Listening on ${config.ip}:${config.port}, access via ${config.server_name}!`);
 
   // @ts-ignore
-  app.listen(config.port, config.ip);
+  server.listen(config.port, config.ip);
 
   setInterval(() => { drivers.tick(); plugins.tick(); /* db.trimDeletedTick();*/ }, 500);
 

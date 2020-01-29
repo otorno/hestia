@@ -9,6 +9,7 @@ export interface PluginInfo {
   id: string;
   longId: string;
   name: string;
+  multiInstance?: boolean;
   router?: Router;
   authedAnyRouter?: Router;
   authedUserRouter?: Router;
@@ -28,6 +29,10 @@ export interface PluginApiInterface {
     env(): string;
     origin(): string;
     host(): string;
+  };
+  sockets: {
+    emit(event: string, ...data: any[]): void;
+    emitTo(rooms: string[], event: string, ...data: any[]): void;
   };
   gaia: {
     read(address: string, path: string): Promise<{ contentType: string } & ({ stream: Readable } | { redirectUrl: string })>;
@@ -104,6 +109,7 @@ export interface Plugin {
   init(id: string, config: any, apiInterface: PluginApiInterface): Promise<{
     name: string;
     longId: string;
+    multiInstance?: boolean;
     router?: Router;
     /** @deprecated Use `authedUserRouter` instead */
     authedRouter?: Router;
