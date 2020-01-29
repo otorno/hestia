@@ -27,6 +27,9 @@ want to overwrite or keep your current version
 - overarching admin feature (`/api/v1/admin/` + frontend work)
   - manage users & user-whitelist
 
+- separate Gaia into plugin
+  - this makes Hestia into more of a neutral-party middleware that's more flexible
+
 - inboxes plugin
   - websocket for live updates instead of polling?
 
