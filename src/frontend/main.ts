@@ -3,15 +3,18 @@ import Vuex, { mapGetters } from 'vuex';
 import { ValidationProvider } from 'vee-validate';
 import Buefy from 'buefy';
 
+// @ts-ignore
+import('@mdi/font/css/materialdesignicons.css');
+
+import './buefy.scss';
+import './styles.scss';
+
 import AppComponent from './app/app';
 import LoginComponent from './components/hestia-login/hestia-login';
 import LoadingComponent from './components/hestia-loading/hestia-loading';
 import { makeCenterStyle, makeInitializerComponent } from 'common/util/render-util';
 import { initialStore } from 'frontend/vvue';
 
-import '@mdi/font/css/materialdesignicons.css';
-import './buefy.scss';
-import './styles.scss';
 import router from './router';
 
 console.log('Environment:', process.env.NODE_ENV);

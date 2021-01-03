@@ -89,7 +89,7 @@ export default (Vue as VVue).extend({
       await this.api.user.validateToken();
     } catch(err) {
       if(err && err.response && err.response.status === 403) {
-        await new Promise((resolve) => this.$buefy.dialog.alert({
+        await new Promise<void>((resolve) => this.$buefy.dialog.alert({
           type: 'is-danger',
           title: 'Bad Token',
           message: 'Cannot use the Hestia Dashboard unless Hestia is your selected Gaia Hub.'

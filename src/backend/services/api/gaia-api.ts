@@ -65,7 +65,7 @@ export default function createGaiaRouter(logger: Logger) {
     parseAddressPathRegex,
     wrapAsync(async (req, res) => {
       logger.debug('Gaia - Read: ', req.params.address, req.params.path);
-      if(trueArray.includes(req.query.metadata))
+      if(trueArray.includes(String(req.query.metadata)))
         return res.json(await databaseService.metadata.getForFile(req.params.address + '/' + req.params.path)
           .then(a => ({
             contentType: a.contentType,

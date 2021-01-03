@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import { Readable as ReadableStream } from 'stream';
-import { Dropbox } from 'dropbox';
+import { Dropbox, files as DropboxFileTypes, DropboxAuth } from 'dropbox';
 import * as fetch from 'node-fetch';
 import * as uuid from 'uuid';
 import { getLogger, Logger } from '@log4js-node/log4js-api';
@@ -80,10 +80,10 @@ https://github.com/dropbox/dropbox-sdk-js/issues/80#issuecomment-283189888
     for(const key in currentSnapshot) if(currentSnapshot[key]) {
       const status = await this.dbx(key).filesUploadSessionFinishBatchCheck({ async_job_id: currentSnapshot[key].jobId });
       this.logger.debug(`Job ${currentSnapshot[key].jobId} is "${status['.tag']}"`);
-      if(status['.tag'] === 'complete') {
+      if(status.result['.tag'] === 'complete') {
 
         const succeededJobs = [];
-        for(const entry of status.entries) {
+        for(const entry of status.result.entries) {
           if(entry['.tag'] === 'failure') {
             this.logger.error('Failed to upload:', entry.failure);
           } else {
@@ -128,7 +128,7 @@ https://github.com/dropbox/dropbox-sdk-js/issues/80#issuecomment-283189888
         const sret = await dbx.filesUploadSessionStart({ contents: job.buffer, close: true });
 
         entries.push({
-          cursor: { session_id: sret.session_id, offset: job.contentLength },
+          cursor: { session_id: sret.result.session_id, offset: job.contentLength },
           commit: { path: '/' + job.path, mode: 'overwrite' }
         });
 
@@ -136,8 +136,8 @@ https://github.com/dropbox/dropbox-sdk-js/issues/80#issuecomment-283189888
       }
 
       const fret = await dbx.filesUploadSessionFinishBatch({ entries });
-      if(fret['.tag'] === 'async_job_id')
-        this.current[key] = { jobId: fret.async_job_id, jobs: queueSnapshot[key] };
+      if(fret.result['.tag'] === 'async_job_id')
+        this.current[key] = { jobId: fret.result.async_job_id, jobs: queueSnapshot[key] };
 
       if(this.current[key])
         this.logger.debug('Started batch: ' + this.current[key].jobId);
@@ -201,13 +201,13 @@ class UserDropboxDriver implements Driver {
       return { redirectUrl: link };
     else {
       this.logger.debug('No link indexed, getting...');
-      const res = await dbx.sharingGetSharedLinks({ path: '/' + p });
+      const res = await dbx.sharingListSharedLinks({ path: '/' + p }).then(r => r.result);
       let newLink: string;
       if(!res.links.length) {
         this.logger.debug('No links available, creating a new one!');
         const res2 = await dbx.sharingCreateSharedLinkWithSettings({
           path: '/' + p
-        });
+        }).then(r => r.result);
         newLink = res2.url;
       } else {
         newLink = res.links[0].url;
@@ -253,13 +253,13 @@ class UserDropboxDriver implements Driver {
       });
     }
 
-    const res = await dbx.sharingGetSharedLinks({ path: '/' + p });
+    const res = await dbx.sharingListSharedLinks({ path: '/' + p }).then(r => r.result);
     let newLink: string;
     if(!res.links.length) {
       this.logger.debug('Creating a new shared link.');
       const res2 = await dbx.sharingCreateSharedLinkWithSettings({
         path: '/' + p
-      });
+      }).then(r => r.result);
       newLink = res2.url;
     } else {
       newLink = res.links[0].url;
@@ -286,10 +286,12 @@ class UserDropboxDriver implements Driver {
     const bigList: { name: string; contentLength: number; lastModifiedDate: number }[] = [];
 
     const dbx = this.dbx(user);
-    const rets: DropboxTypes.files.ListFolderResult[] = [];
-    rets.push(await dbx.filesListFolder({ path: prefix ? '/' + prefix : '', recursive: true, limit: this.pageSize }));
+    const rets: DropboxFileTypes.ListFolderResult[] = [];
+    rets.push(await dbx.filesListFolder({ path: prefix ? '/' + prefix : '', recursive: true, limit: this.pageSize })
+      .then(res => res.result));
     while(rets[rets.length - 1].has_more)
-      rets.push(await dbx.filesListFolderContinue({ cursor: rets[rets.length - 1].cursor }));
+      rets.push(await dbx.filesListFolderContinue({ cursor: rets[rets.length - 1].cursor })
+        .then(res => res.result));
 
     const entryData: {
       ['.tag']: 'folder' | 'file';
@@ -367,7 +369,7 @@ class UserDropboxDriver implements Driver {
   }
 
   async getInfo(user: User) {
-    const info = await this.dbx(user).usersGetSpaceUsage();
+    const info = await this.dbx(user).usersGetSpaceUsage().then(res => res.result);
     return {
       spaceUsed: info.used,
       spaceAvailable: info.allocation['.tag'] === 'individual' ? info.allocation.allocated : 0,
@@ -382,19 +384,22 @@ class UserDropboxDriver implements Driver {
   } | {
     finish: { address: string; userdata: { uid: string; token: string } };
   }>;
-  async register(user: User, redirectUrl?: string, req?: { headers: { [key: string]: string }; query: any }) {
+  async register(user: User, redirectUrl?: string, req?: { headers: { [key: string]: string }; query: any }): Promise<{
+    redirect: { url: string };
+  } | {
+    finish: { address: string; userdata: { uid: string; token: string } };
+  }> {
 
     if(!redirectUrl || !req)
       throw new Error('Cannot be used as a hub-backend (must be user-backend)!');
 
-    const dbx = new Dropbox({ clientId: this.client_id, fetch });
-    dbx.setClientSecret(this.secret);
+    const dbxAuth = new DropboxAuth({ clientId: this.client_id, clientSecret: this.secret, fetch });
 
     if(user) {
 
       const state = uuid.v4();
       this.stateCache[state] = user.address;
-      const url = dbx.getAuthenticationUrl(redirectUrl, state, 'code');
+      const url = dbxAuth.getAuthenticationUrl(redirectUrl, state, 'code');
 
       return { redirect: { url } };
     } else if(req.query.code && req.query.state) {
@@ -405,8 +410,8 @@ class UserDropboxDriver implements Driver {
       const address = this.stateCache[state];
       if(!address) throw new NotAllowedError('State mismatch.');
 
-      const token = await dbx.getAccessTokenFromCode(redirectUrl, code);
-      const acc = await new Dropbox({ accessToken: token, fetch }).usersGetCurrentAccount();
+      const token: string = await dbxAuth.getAccessTokenFromCode(redirectUrl, code).then(r => (r.result as any).token);
+      const acc = await new Dropbox({ accessToken: token, fetch }).usersGetCurrentAccount().then(r => r.result);
 
       if(!acc.email_verified)
         throw new NotAllowedError('User\'s email is not verified!');
@@ -424,7 +429,7 @@ class UserDropboxDriver implements Driver {
     const dbx = this.dbx(user.makeSafeForConnection(id));
     let cursor = '';
     do {
-      const res = await dbx.sharingListSharedLinks({ direct_only: true }); // do this on init too :thonk:?
+      const res = await dbx.sharingListSharedLinks({ direct_only: true }).then(r => r.result); // do this on init too :thonk:?
       for(const link of res.links) {
         if((link.expires && link.expires !== 'never') ||
           (link.link_permissions.requested_visibility && link.link_permissions.requested_visibility['.tag'] !== 'public'))

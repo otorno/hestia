@@ -2,7 +2,7 @@ import 'source-map-support/register';
 import configureLogger from './logger';
 
 import * as http from 'http';
-import * as socketio from 'socket.io';
+import { Server as SocketIOService } from 'socket.io';
 import * as express from 'express';
 import * as cors from 'cors';
 import * as helmet from 'helmet';
@@ -49,7 +49,7 @@ db.init(config).then(async () => {
 
   const app = express();
   const server = http.createServer(app);
-  const io = socketio.listen(server);
+  const io = new SocketIOService(server);
   app.set('trust proxy', 1);
 
   app.use(bodyParser.raw({ limit: config.max_blob_size }));
@@ -64,11 +64,15 @@ db.init(config).then(async () => {
 
   app.use(helmet.contentSecurityPolicy({
     directives: production ? {
+      defaultSrc: ['\'self\''],
       styleSrc: ['\'self\''],
-      scriptSrc: ['\'self\'']
+      scriptSrc: ['\'self\''],
+      imgSrc: ['\'self\'', 'data:']
     } : {
+      defaultSrc: ['\'self\''],
       styleSrc: ['\'self\'', '\'unsafe-inline\''],
-      scriptSrc: ['\'self\'', '\'unsafe-eval\'']
+      scriptSrc: ['\'self\'', '\'unsafe-eval\''],
+      imgSrc: ['\'self\'', 'data:']
     }
   }));
 

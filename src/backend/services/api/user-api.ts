@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import * as cors from 'cors';
-import * as uuid from 'uuid';
 import { Logger } from 'log4js';
 import { handleError, handleValidationError, validateUser, wrapAsync } from './middleware';
 
@@ -107,11 +106,11 @@ export default function createUserApi(logger: Logger) {
     validateUser(),
     wrapAsync(async (req, res) => {
       let index: ExpandedMetadataIndex | MetadataIndex;
-      if(trueArray.includes(req.query.global))
+      if(trueArray.includes(String(req.query.global)))
         index = await db.metadata.getForUserExpanded(req.user);
       else
         index = await db.metadata.getForUser(req.user);
-      if(trueArray.includes(req.query.hash))
+      if(trueArray.includes(String(req.query.hash)))
         res.send(hashBuffer(Buffer.from(JSON.stringify(index), 'utf8')));
       else
         res.json(index);

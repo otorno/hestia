@@ -18,7 +18,7 @@ class SQLite3Database {
   public static async create(filename: string, logger: Logger) {
     const ret = new SQLite3Database();
     ret.logger = logger;
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       ret.db = new Database(filename, err => err ? reject(err) : resolve());
     });
     return ret;
