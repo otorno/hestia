@@ -64,7 +64,7 @@
   "dependencies": {
     "@log4js-node/log4js-api": "^1.0.2",
     "@mdi/font": "^3.8.95",
-    "axios": "^0.19.0",
+    "axios": "^0.21.1",
     "bitcoinjs-lib": "^5.1.2",
     "blockstack": "^19.2.2",
     "buefy": "^0.7.10",
