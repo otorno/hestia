@@ -81,7 +81,7 @@
     "jsontokens": "^2.0.2",
     "jszip": "^3.2.2",
     "lodash": "^4.17.15",
-    "log4js": "^4.5.1",
+    "log4js": "^6.4.0",
     "luxon": "^1.17.2",
     "node-fetch": "^2.6.0",
     "pm2-intercom": "^1.0.0",
